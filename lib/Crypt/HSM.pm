@@ -18,7 +18,7 @@ XSLoader::load(__PACKAGE__, __PACKAGE__->VERSION);
  $session->login('user', '1234');
 
  my ($key) = $session->find_objects({ class => 'secret-key', label => "my-key" });
- my $ciphertext = $session->encrypt('aes-gcm', $key, $plaintext);
+ my $ciphertext = $session->encrypt('aes-gcm', $key, $plaintext, $iv);
 
 =head1 DESCRIPTION
 

@@ -69,10 +69,19 @@ my $decrypted_text = $session->decrypt('rsa-pkcs', $private_key, $encrypted_text
 
 is $decrypted_text, $plain_text, 'decrypt: "plain text"';
 
+{
 my $signature = $session->sign('sha256-rsa-pkcs', $private_key, $plain_text);
 note unpack('H*', $signature);
 
 ok $session->verify('sha256-rsa-pkcs', $public_key, $plain_text, $signature);
+}
+
+{
+my $signature = $session->sign('sha256-rsa-pkcs-pss', $private_key, $plain_text);
+note unpack('H*', $signature);
+
+ok $session->verify('sha256-rsa-pkcs-pss', $public_key, $plain_text, $signature);
+}
 
 my $attributes = $session->get_attributes($public_key, [ 'modulus', 'public-exponent' ]);
 

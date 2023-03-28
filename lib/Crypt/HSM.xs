@@ -719,13 +719,280 @@ static const map mechanisms = {
 
 #define get_mechanism_type(input) map_get(mechanisms, input, "mechanism")
 
+static const map generators = {
+	{ STR_WITH_LEN("sha1"), CKG_MGF1_SHA1 },
+	{ STR_WITH_LEN("sha256"), CKG_MGF1_SHA256 },
+	{ STR_WITH_LEN("sha384"), CKG_MGF1_SHA384 },
+	{ STR_WITH_LEN("sha512"), CKG_MGF1_SHA512 },
+	{ STR_WITH_LEN("sha224"), CKG_MGF1_SHA224 },
+	{ STR_WITH_LEN("sha3_224"), CKG_MGF1_SHA3_224 },
+	{ STR_WITH_LEN("sha3_256"), CKG_MGF1_SHA3_256 },
+	{ STR_WITH_LEN("sha3_384"), CKG_MGF1_SHA3_384 },
+	{ STR_WITH_LEN("sha3_512"), CKG_MGF1_SHA3_512 },
+};
+
+static const map kdfs = {
+	{ STR_WITH_LEN("null"), CKD_NULL },
+	{ STR_WITH_LEN("sha1_kdf"), CKD_SHA1_KDF },
+	{ STR_WITH_LEN("sha1_kdf_asn1"), CKD_SHA1_KDF_ASN1 },
+	{ STR_WITH_LEN("sha1_kdf_concatenate"), CKD_SHA1_KDF_CONCATENATE },
+	{ STR_WITH_LEN("sha224_kdf"), CKD_SHA224_KDF },
+	{ STR_WITH_LEN("sha256_kdf"), CKD_SHA256_KDF },
+	{ STR_WITH_LEN("sha384_kdf"), CKD_SHA384_KDF },
+	{ STR_WITH_LEN("sha512_kdf"), CKD_SHA512_KDF },
+	{ STR_WITH_LEN("cpdiversify_kdf"), CKD_CPDIVERSIFY_KDF },
+	{ STR_WITH_LEN("sha3_224_kdf"), CKD_SHA3_224_KDF },
+	{ STR_WITH_LEN("sha3_256_kdf"), CKD_SHA3_256_KDF },
+	{ STR_WITH_LEN("sha3_384_kdf"), CKD_SHA3_384_KDF },
+	{ STR_WITH_LEN("sha3_512_kdf"), CKD_SHA3_512_KDF },
+	{ STR_WITH_LEN("sha1_kdf_sp800"), CKD_SHA1_KDF_SP800 },
+	{ STR_WITH_LEN("sha224_kdf_sp800"), CKD_SHA224_KDF_SP800 },
+	{ STR_WITH_LEN("sha256_kdf_sp800"), CKD_SHA256_KDF_SP800 },
+	{ STR_WITH_LEN("sha384_kdf_sp800"), CKD_SHA384_KDF_SP800 },
+	{ STR_WITH_LEN("sha512_kdf_sp800"), CKD_SHA512_KDF_SP800 },
+	{ STR_WITH_LEN("sha3_224_kdf_sp800"), CKD_SHA3_224_KDF_SP800 },
+	{ STR_WITH_LEN("sha3_256_kdf_sp800"), CKD_SHA3_256_KDF_SP800 },
+	{ STR_WITH_LEN("sha3_384_kdf_sp800"), CKD_SHA3_384_KDF_SP800 },
+	{ STR_WITH_LEN("sha3_512_kdf_sp800"), CKD_SHA3_512_KDF_SP800 },
+	{ STR_WITH_LEN("blake2b_160_kdf"), CKD_BLAKE2B_160_KDF },
+	{ STR_WITH_LEN("blake2b_256_kdf"), CKD_BLAKE2B_256_KDF },
+	{ STR_WITH_LEN("blake2b_384_kdf"), CKD_BLAKE2B_384_KDF },
+	{ STR_WITH_LEN("blake2b_512_kdf"), CKD_BLAKE2B_512_KDF },
+};
+
+void S_specialize_pss(pTHX_ CK_MECHANISM* result, CK_MECHANISM_TYPE hashAlg, CK_RSA_PKCS_MGF_TYPE generator, SV** array, size_t array_len) {
+	CK_RSA_PKCS_PSS_PARAMS* params;
+	Newxz(params, 1, CK_RSA_PKCS_PSS_PARAMS);
+	SAVEFREEPV(params);
+	result->pParameter = params;
+	result->ulParameterLen = sizeof *params;
+
+	params->hashAlg = hashAlg;
+	params->mgf = generator;
+
+	if (array_len >= 1)
+		params->sLen = SvUV(array[1]);
+}
+#define specialize_pss(result, type, generator, array, array_length) S_specialize_pss(aTHX_ result, type, generator, array, array_length)
+
 CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** array, size_t array_len) {
 	CK_MECHANISM result = { type, NULL, 0 };
 
 	switch (type) {
-		default: {
-			if (array_len >= 1)
-				result.pParameter = SvPVbyte(array[0], result.ulParameterLen);
+		case CKM_DES_ECB:
+		case CKM_DES3_ECB:
+		case CKM_AES_ECB:
+			break;
+
+		case CKM_DES_CBC:
+		case CKM_DES_CBC_PAD:
+		case CKM_DES3_CBC:
+		case CKM_DES3_CBC_PAD:
+		case CKM_AES_CBC:
+		case CKM_AES_CBC_PAD:
+			if (array_len < 1)
+				Perl_croak(aTHX_ "No IV given for cipher needing it");
+			result.pParameter = SvPVbyte(array[0], result.ulParameterLen);
+			break;
+
+		case CKM_AES_CTR: {
+			if (array_len < 1)
+				Perl_croak(aTHX_ "No IV given for AES CTR");
+
+			CK_AES_CTR_PARAMS* params;
+			Newxz(params, 1, CK_AES_CTR_PARAMS);
+			SAVEFREEPV(params);
+			result.pParameter = params;
+			result.ulParameterLen = sizeof *params;
+
+			STRLEN len;
+			const char* cb = SvPVbyte(array[1], len);
+			memcpy(params->cb, cb, MIN(len, 16));
+
+			params->ulCounterBits = array_len >= 2 ? SvUV(array[2]) : 128;
+
+			break;
+		}
+
+		case CKM_AES_GCM: {
+			if (array_len < 1)
+				Perl_croak(aTHX_ "No IV given for AES-GCM");
+
+			CK_GCM_PARAMS* params;
+			Newxz(params, 1, CK_GCM_PARAMS);
+			SAVEFREEPV(params);
+			result.pParameter = params;
+			result.ulParameterLen = sizeof *params;
+
+			params->pIv = SvPVbyte(array[0], params->ulIvLen);
+			params->ulIvBits = 8 * params->ulIvLen;
+
+			if (array_len >= 2 && SvOK(array[1]))
+				params->pAAD = SvPVbyte(array[1], params->ulAADLen);
+
+			params->ulTagBits = array_len >= 2 ? SvUV(array[2]) : 128;
+
+			break;
+		}
+
+		case CKM_CHACHA20_POLY1305:
+		case CKM_SALSA20_POLY1305: {
+			if (array_len < 1)
+				Perl_croak(aTHX_ "No nonce given for chacha20/salsa20");
+
+			CK_SALSA20_CHACHA20_POLY1305_PARAMS* params;
+			Newxz(params, 1, CK_SALSA20_CHACHA20_POLY1305_PARAMS);
+			SAVEFREEPV(params);
+			result.pParameter = params;
+			result.ulParameterLen = sizeof *params;
+
+			params->pNonce = SvPVbyte(array[0], params->ulNonceLen);
+
+			if (array_len >= 2 && SvOK(array[1]))
+				params->pAAD = SvPVbyte(array[1], params->ulAADLen);
+
+			break;
+		}
+
+		case CKM_RSA_PKCS_PSS: {
+			if (array_len < 1)
+				Perl_croak(aTHX_ "No hash given for RSA_PKCS_PSS");
+			CK_MECHANISM_TYPE hash = get_mechanism_type(array[0]);
+			CK_RSA_PKCS_MGF_TYPE generator = map_get(generators, array[0], "generator");
+			specialize_pss(&result, hash, generator, array + 1, array_len - 1);
+			break;
+		}
+		case CKM_SHA224_RSA_PKCS_PSS:
+			specialize_pss(&result, CKM_SHA224, CKG_MGF1_SHA224, array, array_len);
+			break;
+		case CKM_SHA256_RSA_PKCS_PSS:
+			specialize_pss(&result, CKM_SHA256, CKG_MGF1_SHA256, array, array_len);
+			break;
+		case CKM_SHA384_RSA_PKCS_PSS:
+			specialize_pss(&result, CKM_SHA384, CKG_MGF1_SHA384, array, array_len);
+			break;
+		case CKM_SHA512_RSA_PKCS_PSS:
+			specialize_pss(&result, CKM_SHA512, CKG_MGF1_SHA512, array, array_len);
+			break;
+
+		case CKM_ECDH1_DERIVE:
+		case CKM_ECDH1_COFACTOR_DERIVE: {
+			if (array_len < 2)
+				Perl_croak(aTHX_ "Insufficient parameters for derivation");
+
+			CK_ECDH1_DERIVE_PARAMS* params;
+			Newxz(params, 1, CK_ECDH1_DERIVE_PARAMS);
+			SAVEFREEPV(params);
+			result.pParameter = params;
+			result.ulParameterLen = sizeof *params;
+
+			params->kdf = map_get(kdfs, array[0], "kdf");
+			params->pPublicData = SvPVbyte(array[1], params->ulPublicDataLen);
+
+			if (array_len > 2)
+				params->pSharedData = SvPVbyte(array[2], params->ulSharedDataLen);
+
+			break;
+		}
+
+		case CKM_DH_PKCS_DERIVE: {
+			if (array_len < 1)
+				Perl_croak(aTHX_ "Insufficient parameters for derivation");
+
+			result.pParameter = SvPVbyte(array[0], result.ulParameterLen);
+
+			break;
+		}
+
+		case CKM_DES_ECB_ENCRYPT_DATA:
+		case CKM_DES3_ECB_ENCRYPT_DATA:
+		case CKM_CONCATENATE_DATA_AND_BASE:
+		case CKM_CONCATENATE_BASE_AND_DATA:
+		case CKM_AES_ECB_ENCRYPT_DATA: {
+			if (array_len < 1)
+				Perl_croak(aTHX_ "Insufficient parameters for derivation");
+
+			CK_KEY_DERIVATION_STRING_DATA* params;
+			Newxz(params, 1, CK_KEY_DERIVATION_STRING_DATA);
+			SAVEFREEPV(params);
+			result.pParameter = params;
+			result.ulParameterLen = sizeof *params;
+
+			params->pData = SvPVbyte(array[0], params->ulLen);
+
+			break;
+		}
+
+		case CKM_CONCATENATE_BASE_AND_KEY: {
+			if (array_len < 1)
+				Perl_croak(aTHX_ "Insufficient parameters for derivation");
+
+			CK_OBJECT_HANDLE* params;
+			Newxz(params, 1, CK_OBJECT_HANDLE);
+			SAVEFREEPV(params);
+			result.pParameter = params;
+			result.ulParameterLen = sizeof *params;
+
+			*params = SvUV(array[0]);
+
+			break;
+		}
+
+		case CKM_DES_CBC_ENCRYPT_DATA:
+		case CKM_DES3_CBC_ENCRYPT_DATA: {
+			if (array_len < 2)
+				Perl_croak(aTHX_ "Insufficient parameters for derivation");
+
+			CK_DES_CBC_ENCRYPT_DATA_PARAMS* params;
+			Newxz(params, 1, CK_DES_CBC_ENCRYPT_DATA_PARAMS);
+			SAVEFREEPV(params);
+			result.pParameter = params;
+			result.ulParameterLen = sizeof *params;
+
+			params->pData = SvPVbyte(array[0], params->length);
+			STRLEN length;
+			const char* iv = SvPVbyte(array[1], length);
+			memcpy(params->iv, iv, MIN(sizeof params->iv, length));
+
+			break;
+		}
+
+		case CKM_AES_CBC_ENCRYPT_DATA: {
+			if (array_len < 2)
+				Perl_croak(aTHX_ "Insufficient parameters for derivation");
+
+			CK_DES_CBC_ENCRYPT_DATA_PARAMS* params;
+			Newxz(params, 1, CK_DES_CBC_ENCRYPT_DATA_PARAMS);
+			SAVEFREEPV(params);
+			result.pParameter = params;
+			result.ulParameterLen = sizeof *params;
+
+			params->pData = SvPVbyte(array[0], params->length);
+			STRLEN length;
+			const char* iv = SvPVbyte(array[1], length);
+			memcpy(params->iv, iv, MIN(sizeof params->iv, length));
+
+			break;
+		}
+
+		case CKM_RSA_PKCS_OAEP: {
+			if (array_len < 2)
+				Perl_croak(aTHX_ "Insufficient parameters for derivation");
+
+			CK_RSA_PKCS_OAEP_PARAMS* params;
+			Newxz(params, 1, CK_RSA_PKCS_OAEP_PARAMS);
+			SAVEFREEPV(params);
+			result.pParameter = params;
+			result.ulParameterLen = sizeof *params;
+
+			params->hashAlg = get_mechanism_type(array[0]);
+			params->mgf = map_get(generators, array[0], "generator");
+			params->source = SvTRUE(array[1]);
+
+			if (array_len > 2)
+				params->pSourceData = SvPVbyte(array[2], params->ulSourceDataLen);
+
+			break;
 		}
 	}
 
