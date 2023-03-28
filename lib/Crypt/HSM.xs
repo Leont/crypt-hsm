@@ -719,18 +719,19 @@ static const map mechanisms = {
 
 #define get_mechanism_type(input) map_get(mechanisms, input, "mechanism")
 
-static CK_MECHANISM S_get_mechanism(pTHX_ SV* input) {
-	if (SvROK(input) && SvTYPE(SvRV(input)) == SVt_PVAV && av_len((AV*)SvRV(input)) > 1) {
-		AV* array = (AV*)SvRV(input);
-		CK_MECHANISM_TYPE type = get_mechanism_type(*av_fetch(array, 0, FALSE));
-		STRLEN length;
-		char* data = SvPVbyte(*av_fetch(array, 1, FALSE), length);
-		return (CK_MECHANISM) { type, data, length };
+CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** array, size_t array_len) {
+	CK_MECHANISM result = { type, NULL, 0 };
+
+	switch (type) {
+		default: {
+			if (array_len >= 1)
+				result.pParameter = SvPVbyte(array[0], result.ulParameterLen);
+		}
 	}
-	else
-		return (CK_MECHANISM) { get_mechanism_type(input), NULL, 0 };
+
+	return result;
 }
-#define get_mechanism(input) S_get_mechanism(aTHX_ input)
+#define mechanism_from_args(mechanism, offset) S_specialize_mechanism(aTHX_ mechanism, PL_stack_base + ax + offset, items - offset);
 
 static const map object_classes = {
 	{ STR_WITH_LEN("data"), CKO_DATA },
@@ -1590,11 +1591,12 @@ PPCODE:
 	self->funcs->C_FindObjectsFinal(self->handle);
 
 
-void generate_keypair(Crypt::HSM::Session self, CK_MECHANISM mechanism, Attributes publicKeyTemplate, Attributes privateKeyTemplate)
+void generate_keypair(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Attributes publicKeyTemplate, Attributes privateKeyTemplate)
 PPCODE:
 	CK_OBJECT_HANDLE publicKey;
 	CK_OBJECT_HANDLE privateKey;
 
+	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 4);
 	CK_RV result = self->funcs->C_GenerateKeyPair(self->handle, &mechanism, publicKeyTemplate.member, publicKeyTemplate.length, privateKeyTemplate.member, privateKeyTemplate.length, &publicKey, &privateKey);
 	if (result != CKR_OK)
 		croak_with("Could not create keypair", result);
@@ -1603,8 +1605,9 @@ PPCODE:
 	mXPUSHi(privateKey);
 
 
-CK_OBJECT_HANDLE generate_key(Crypt::HSM::Session self, CK_MECHANISM mechanism, Attributes keyTemplate)
+CK_OBJECT_HANDLE generate_key(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Attributes keyTemplate)
 CODE:
+	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 3);
 	CK_RV result = self->funcs->C_GenerateKey(self->handle, &mechanism, keyTemplate.member, keyTemplate.length, &RETVAL);
 	if (result != CKR_OK)
 		croak_with("Could not create key", result);
@@ -1612,8 +1615,9 @@ OUTPUT:
 	RETVAL
 
 
-SV* encrypt(Crypt::HSM::Session self, CK_MECHANISM mechanism, CK_OBJECT_HANDLE key, SV* data)
+SV* encrypt(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, CK_OBJECT_HANDLE key, SV* data, ...)
 CODE:
+	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 4);
 	CK_RV result = self->funcs->C_EncryptInit(self->handle, &mechanism, key);
 	if (result != CKR_OK)
 		croak_with("Couldn't initialize encryption", result);
@@ -1635,8 +1639,9 @@ OUTPUT:
 	RETVAL
 
 
-SV* decrypt(Crypt::HSM::Session self, CK_MECHANISM mechanism, CK_OBJECT_HANDLE key, SV* data)
+SV* decrypt(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, CK_OBJECT_HANDLE key, SV* data, ...)
 CODE:
+	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 4);
 	CK_RV result = self->funcs->C_DecryptInit(self->handle, &mechanism, key);
 	if (result != CKR_OK)
 		croak_with("Couldn't initialize encryption", result);
@@ -1658,8 +1663,9 @@ OUTPUT:
 	RETVAL
 
 
-SV* sign(Crypt::HSM::Session self, CK_MECHANISM mechanism, CK_OBJECT_HANDLE key, SV* data)
+SV* sign(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, CK_OBJECT_HANDLE key, SV* data, ...)
 CODE:
+	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 4);
 	CK_RV result = self->funcs->C_SignInit(self->handle, &mechanism, key);
 	if (result != CKR_OK)
 		croak_with("Couldn't initialize signing", result);
@@ -1681,8 +1687,9 @@ OUTPUT:
 	RETVAL
 
 
-IV verify(Crypt::HSM::Session self, CK_MECHANISM mechanism, CK_OBJECT_HANDLE key, SV* data, SV* signature)
+IV verify(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, CK_OBJECT_HANDLE key, SV* data, SV* signature, ...)
 CODE:
+	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 5);
 	CK_RV result = self->funcs->C_VerifyInit(self->handle, &mechanism, key);
 	if (result != CKR_OK)
 		croak_with("Couldn't initialize Verifying", result);
@@ -1699,8 +1706,9 @@ OUTPUT:
 	RETVAL
 
 
-SV* digest(Crypt::HSM::Session self, CK_MECHANISM mechanism, SV* data)
+SV* digest(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, SV* data, ...)
 CODE:
+	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 3);
 	CK_RV result = self->funcs->C_DigestInit(self->handle, &mechanism);
 	if (result != CKR_OK)
 		croak_with("Couldn't initialize digestion", result);
@@ -1722,8 +1730,9 @@ OUTPUT:
 	RETVAL
 
 
-SV* wrap_key(Crypt::HSM::Session self, CK_MECHANISM mechanism, CK_OBJECT_HANDLE wrappingKey, CK_OBJECT_HANDLE key)
+SV* wrap_key(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, CK_OBJECT_HANDLE wrappingKey, CK_OBJECT_HANDLE key, ...)
 CODE:
+	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 4);
 	CK_ULONG length;
 	CK_RV result = self->funcs->C_WrapKey(self->handle, &mechanism, wrappingKey, key, NULL, &length);
 	if (result != CKR_OK)
@@ -1738,8 +1747,9 @@ CODE:
 OUTPUT:
 	RETVAL
 
-CK_OBJECT_HANDLE unwrap_key(Crypt::HSM::Session self, CK_MECHANISM mechanism, CK_OBJECT_HANDLE unwrappingKey, SV* wrapped, Attributes attributes)
+CK_OBJECT_HANDLE unwrap_key(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, CK_OBJECT_HANDLE unwrappingKey, SV* wrapped, Attributes attributes, ...)
 CODE:
+	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 5);
 	STRLEN wrappedLen;
 	char* wrappedPV = SvPVbyte(wrapped, wrappedLen);
 	CK_RV result = self->funcs->C_UnwrapKey(self->handle, &mechanism, unwrappingKey, wrappedPV, wrappedLen, attributes.member, attributes.length, &RETVAL);
@@ -1748,8 +1758,9 @@ CODE:
 OUTPUT:
 	RETVAL
 
-CK_OBJECT_HANDLE derive_key(Crypt::HSM::Session self, CK_MECHANISM mechanism, CK_OBJECT_HANDLE baseKey, Attributes attributes)
+CK_OBJECT_HANDLE derive_key(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, CK_OBJECT_HANDLE baseKey, Attributes attributes, ...)
 CODE:
+	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 4);
 	CK_RV result = self->funcs->C_DeriveKey(self->handle, &mechanism, baseKey, attributes.member, attributes.length, &RETVAL);
 	if (result != CKR_OK)
 		croak_with("Couldn't derive key", result);

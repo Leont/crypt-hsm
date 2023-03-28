@@ -12,7 +12,7 @@ use Crypt::HSM;
 
 =head1 SYNOPSIS
 
- $session->encrypt('aes-cbc', $key, $plaintext);
+ $session->encrypt('aes-cbc', $key, $plaintext, $iv);
 
  $session->sign('sha256-hmac', $key, $data);
 
@@ -46,6 +46,8 @@ This is an identifier that refers to resource inside the HSM, it has no meaning 
 
 This is a mechanism for a cryptographic operation, e.g. C<'aes-gcm'>, C<'sha256-rsa-pkcs'> or C<'sha512-hmac'>. The list of supported mechanisms can be retrieved using the C<mechanisms> method on the C<Crypt::HSM> object.
 
+Cryptographic methods taking taking an argument will also take zero or more mechanism specific arguments after their generic arguments, for example an IV for a symmetric cipher.
+
 =item attributes
 
 This is an hash of attributes. The key is the name of the attribute (e.g. C<'class'>, C<'sensitive'>), the value depends on the key but is usually either an integer, a string or a bool.
@@ -60,11 +62,11 @@ Copy an object, optionally adding/modifying the given attributes.
 
 Create an object with the given C<$attribute> hash.
 
-=method decrypt($mechanism, $key, $ciphertext)
+=method decrypt($mechanism, $key, $ciphertext, ...)
 
 Decrypt C<$ciphertext> with C<$mechanism> and C<$key>.
 
-=method derive_key($mechanism, $key, $attributes)
+=method derive_key($mechanism, $key, $attributes, ...)
 
 Derive a new key from C<$key>, using mechanism and setting C<$attributes> on it.
 
@@ -72,11 +74,11 @@ Derive a new key from C<$key>, using mechanism and setting C<$attributes> on it.
 
 This deletes the object with the identifier C<$object>
 
-=method digest($mechanism, $key, $input)
+=method digest($mechanism, $key, $input, ...)
 
 Digest C<$input> with C<$mechanism> and C<$key>.
 
-=method encrypt($mechanism, $key, $plaintext)
+=method encrypt($mechanism, $key, $plaintext, ...)
 
 Encrypt C<$plaintext> with C<$mechanism> and C<$key>.
 
@@ -84,7 +86,7 @@ Encrypt C<$plaintext> with C<$mechanism> and C<$key>.
 
 Find all objects that satisfy the given C<$attributes>
 
-=method generate_key($mechanism, $attributes)
+=method generate_key($mechanism, $attributes, ...)
 
 Generate a new key for C<$mechanism> with C<$attributes>. Some relevant attributes are:
 
@@ -126,7 +128,7 @@ This sets the length of a key, this can be useful when creating a C<'generic-sec
 
 Most of these have implementation-specific defaults.
 
-=method generate_keypair($mechanism, $public_attributes, $private_attributes)
+=method generate_keypair($mechanism, $public_attributes, $private_attributes, ...)
 
 This generates a key pair. The attributes for the 
 
@@ -170,18 +172,18 @@ This sets the C<$attributes> on C<$object>.
 
 This changes the PIN from C<$old_pin> to C<$new_pin>.
 
-=method sign($mechanism, $key, $input)
+=method sign($mechanism, $key, $input, ...)
 
 This creates a signature over C<$input> using C<$mechanism> and C<$key>.
 
-=method unwrap_key($mechanism, $unwrap_key, $wrapped_key, $attributes)
+=method unwrap_key($mechanism, $unwrap_key, $wrapped_key, $attributes, ...)
 
 This unwraps the key wrapped in the bytearray C<$wrapped_key> using C<mechanism> and C<$unwrap_key>, setting C<$attributes> on the new key.
 
-=method verify($mechanism, $key, $data, $signature)
+=method verify($mechanism, $key, $data, $signature, ...)
 
 Verify that C<$signature> matches C<$data>, using C<$mechanism> and C<$key>.
 
-=method wrap_key($mechanism, $wrap_key, $key)
+=method wrap_key($mechanism, $wrap_key, $key, ...)
 
 This wraps C<$key> using C<$mechanism> and C<$wrap_key>.

@@ -9,7 +9,6 @@ TYPEMAP
 
 	CK_USER_TYPE            T_USER_TYPE
 
-	CK_MECHANISM            T_MECHANISM
 	CK_MECHANISM_TYPE       T_MECHANISM_TYPE
 	Attributes              T_ATTRIBUTES
 	Session_flags           T_SESSION_FLAGS
@@ -17,9 +16,6 @@ TYPEMAP
 INPUT
 T_USER_TYPE
 	$var = get_user_type($arg)
-
-T_MECHANISM
-	$var = get_mechanism($arg)
 
 T_MECHANISM_TYPE
 	$var = get_mechanism_type($arg)

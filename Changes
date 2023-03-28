@@ -1,6 +1,7 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+          - Add mechanism arguments to cryptographic methods
 
 0.001     2023-03-28 15:17:26+02:00 Europe/Amsterdam
           Initial release to an unsuspecting world
