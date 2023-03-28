@@ -231,7 +231,7 @@ static const map state_flags = {
 };
 
 
-static IV S_get_flags(pTHX_ const map table, size_t table_size, SV* input) {
+static UV S_get_flags(pTHX_ const map table, size_t table_size, SV* input) {
 	if (SvROK(input) && SvTYPE(SvRV(input)) == SVt_PVAV) {
 		UV result = 0, i;
 		AV* array = (AV*)SvRV(input);
@@ -1300,7 +1300,7 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 		if (SvOK(value)) {
 			switch (entry->type) {
 				case IntAttr:
-					set_intval(current, SvIV(value));
+					set_intval(current, SvUV(value));
 					break;
 				case BoolAttr: {
 					static const char bools[] = { '\0', '\1' };
