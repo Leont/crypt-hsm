@@ -5,30 +5,35 @@ use warnings;
 
 use Crypt::HSM;
 
-my $f = Crypt::HSM->load($ENV{HSM_PROVIDER} // '/usr/lib/pkcs11/libsofthsm2.so');
+my $path = $ENV{HSM_PROVIDER} // '/usr/lib/softhsm/libsofthsm2.so';
+my $pin = $ENV{HSM_PIN};
 
-ok $f, 'load';
+plan skip_all => 'No softhsm detected' unless defined $pin && -e $path;
 
-my $info = $f->info;
+my $provider = Crypt::HSM->load($path);
+
+ok $provider, 'load';
+
+my $info = $provider->info;
 note explain $info;
 
-my @slots = $f->slots;
+my @slots = $provider->slots;
 
 for my $id ( @slots ) {
 	note 'slotID: ', $id;
-	my $slotInfo = $f->slot_info($id);
+	my $slotInfo = $provider->slot_info($id);
 	note explain $slotInfo;
 
-	my $tokenInfo = $f->token_info($id);
+	my $tokenInfo = $provider->token_info($id);
 	note explain $tokenInfo;
 }
 
-my $session = $f->open_session($slots[0]);
+my $session = $provider->open_session($slots[0]);
 
 my $sessionInfo = $session->info;
 note explain $sessionInfo;
 
-$session->login('user', '1234');
+$session->login('user', $pin) if length $pin;
 
 my %public_key_template = (
 	class => 'public-key',
