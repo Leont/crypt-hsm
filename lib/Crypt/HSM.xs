@@ -1898,8 +1898,8 @@ CODE:
 
 	RETVAL = newSV(encryptedDataLen);
 	SvPOK_only(RETVAL);
-	SvCUR(RETVAL) = encryptedDataLen;
 	result = self->funcs->C_Encrypt(self->handle, (CK_BYTE_PTR)dataPV, dataLen, SvPVbyte_nolen(RETVAL), &encryptedDataLen);
+	SvCUR(RETVAL) = encryptedDataLen;
 	if (result != CKR_OK)
 		croak_with("Couldn't encrypt", result);
 OUTPUT:
@@ -1911,14 +1911,14 @@ CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 4);
 	CK_RV result = self->funcs->C_DecryptInit(self->handle, &mechanism, key);
 	if (result != CKR_OK)
-		croak_with("Couldn't initialize encryption", result);
+		croak_with("Couldn't initialize decryption", result);
 
 	STRLEN dataLen;
 	CK_ULONG decryptedDataLen;
 	const char* dataPV = SvPVbyte(data, dataLen);
 	result = self->funcs->C_Decrypt(self->handle, (CK_BYTE_PTR)dataPV, dataLen, NULL, &decryptedDataLen);
 	if (result != CKR_OK)
-		croak_with("Couldn't compute encrypted length", result);
+		croak_with("Couldn't compute decrypted length", result);
 
 	RETVAL = newSV(decryptedDataLen);
 	SvPOK_only(RETVAL);
@@ -1946,20 +1946,20 @@ CODE:
 
 	RETVAL = newSV(signedDataLen);
 	SvPOK_only(RETVAL);
-	SvCUR(RETVAL) = signedDataLen;
 	result = self->funcs->C_Sign(self->handle, (CK_BYTE_PTR)dataPV, dataLen, SvPVbyte_nolen(RETVAL), &signedDataLen);
+	SvCUR(RETVAL) = signedDataLen;
 	if (result != CKR_OK)
 		croak_with("Couldn't sign", result);
 OUTPUT:
 	RETVAL
 
 
-IV verify(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, CK_OBJECT_HANDLE key, SV* data, SV* signature, ...)
+bool verify(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, CK_OBJECT_HANDLE key, SV* data, SV* signature, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 5);
 	CK_RV result = self->funcs->C_VerifyInit(self->handle, &mechanism, key);
 	if (result != CKR_OK)
-		croak_with("Couldn't initialize Verifying", result);
+		croak_with("Couldn't initialize verifying", result);
 
 	STRLEN dataLen;
 	char* dataPV = SvPVbyte(data, dataLen);
@@ -1989,8 +1989,8 @@ CODE:
 
 	RETVAL = newSV(digestedDataLen);
 	SvPOK_only(RETVAL);
-	SvCUR(RETVAL) = digestedDataLen;
 	result = self->funcs->C_Digest(self->handle, (CK_BYTE_PTR)dataPV, dataLen, SvPVbyte_nolen(RETVAL), &digestedDataLen);
+	SvCUR(RETVAL) = digestedDataLen;
 	if (result != CKR_OK)
 		croak_with("Couldn't digest", result);
 OUTPUT:
@@ -2007,8 +2007,8 @@ CODE:
 
 	RETVAL = newSV(length);
 	SvPOK_only(RETVAL);
-	SvCUR(RETVAL) = length;
 	result = self->funcs->C_WrapKey(self->handle, &mechanism, wrappingKey, key, SvPVbyte_nolen(RETVAL), &length);
+	SvCUR(RETVAL) = length;
 	if (result != CKR_OK)
 		croak_with("Couldn't wrap", result);
 OUTPUT:
