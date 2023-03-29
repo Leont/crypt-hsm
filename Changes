@@ -1,6 +1,8 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+
+0.002     2023-03-29 13:45:36+02:00 Europe/Amsterdam
           - Add mechanism arguments to cryptographic methods
           - Make softhsm test a user test, only run if $HSM_PIN is set
 
