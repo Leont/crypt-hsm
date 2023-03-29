@@ -263,8 +263,6 @@ static AV* S_reverse_flags(pTHX_ const map table, size_t table_size, CK_ULONG in
 }
 #define reverse_flags(table, input) S_reverse_flags(aTHX_ table, sizeof table / sizeof *table, input)
 
-typedef CK_FUNCTION_LIST_PTR Crypt__HSM;
-
 struct Session {
 	CK_SESSION_HANDLE handle;
 	CK_FUNCTION_LIST_PTR funcs;
@@ -1515,6 +1513,11 @@ SV* S_trimmed_value(pTHX_ const char* ptr, size_t max) {
 }
 #define trimmed_value(ptr, max) S_trimmed_value(aTHX_ ptr, max)
 
+struct Provider {
+	CK_FUNCTION_LIST* funcs;
+};
+typedef struct Provider* Crypt__HSM;
+
 #define CLONE_SKIP() 1
 
 MODULE = Crypt::HSM	 PACKAGE = Crypt::HSM		PREFIX = provider_
@@ -1523,7 +1526,7 @@ PROTOTYPES: DISABLED
 
 Crypt::HSM load(SV* class, const char* path)
 CODE:
-	Newxz(RETVAL, 1, CK_FUNCTION_LIST);
+	Newxz(RETVAL, 1, struct Provider);
 
 	void* handle = dlopen(path, RTLD_LAZY | RTLD_LOCAL);
 	if (!handle)
@@ -1533,11 +1536,11 @@ CODE:
 	if (C_GetFunctionList == NULL)
 		Perl_croak(aTHX_ "Symbol lookup failed");
 
-	CK_RV rc = C_GetFunctionList(&RETVAL);
+	CK_RV rc = C_GetFunctionList(&RETVAL->funcs);
 	if (rc != CKR_OK)
 		croak_with("Call to C_GetFunctionList failed", rc);
 
-	rc = RETVAL->C_Initialize(NULL);
+	rc = RETVAL->funcs->C_Initialize(NULL);
 	if (rc != CKR_OK)
 		croak_with("Call to C_Initialize failed", rc);
 OUTPUT:
@@ -1546,13 +1549,13 @@ OUTPUT:
 
 void DESTROY(Crypt::HSM self)
 CODE:
-	self->C_Finalize(NULL);
+	self->funcs->C_Finalize(NULL);
 
 
 HV* info(Crypt::HSM self)
 CODE:
 	CK_INFO info;
-	CK_RV result = self->C_GetInfo(&info);
+	CK_RV result = self->funcs->C_GetInfo(&info);
 	if (result != CKR_OK)
 		croak_with("Couldn't get provider info", result);
 
@@ -1570,7 +1573,7 @@ void slots(Crypt::HSM self, CK_BBOOL tokenPresent = 1)
 PPCODE:
 	CK_ULONG count;
 
-	CK_RV result = self->C_GetSlotList(tokenPresent, NULL, &count);
+	CK_RV result = self->funcs->C_GetSlotList(tokenPresent, NULL, &count);
 	if ( result != CKR_OK )
 		croak_with("Couldn't get slots", result);
 
@@ -1580,7 +1583,7 @@ PPCODE:
 	Newxz(slotList, count, CK_SLOT_ID);
 	SAVEFREEPV(slotList);
 
-	result = self->C_GetSlotList(tokenPresent, slotList, &count);
+	result = self->funcs->C_GetSlotList(tokenPresent, slotList, &count);
 	if (result != CKR_OK)
 		croak_with("Couldn't get slots", result);
 
@@ -1591,7 +1594,7 @@ PPCODE:
 HV* slot_info(Crypt::HSM self, CK_SLOT_ID slot_id)
 CODE:
 	CK_SLOT_INFO info;
-	CK_RV result = self->C_GetSlotInfo(slot_id, &info);
+	CK_RV result = self->funcs->C_GetSlotInfo(slot_id, &info);
 	if (result != CKR_OK)
 		croak_with("Couldn't get slot info", result);
 
@@ -1607,7 +1610,7 @@ OUTPUT:
 HV* token_info(Crypt::HSM self, CK_SLOT_ID slotID)
 CODE:
 	CK_TOKEN_INFO info;
-	CK_RV result = self->C_GetTokenInfo(slotID, &info);
+	CK_RV result = self->funcs->C_GetTokenInfo(slotID, &info);
 	if (result != CKR_OK)
 		croak_with("Couldn't get token info", result);
 
@@ -1638,9 +1641,9 @@ CODE:
 	CK_NOTIFY Notify = NULL;
 	Newxz(RETVAL, 1, struct Session);
 
-	RETVAL->funcs = self;
+	RETVAL->funcs = self->funcs;
 
-	CK_RV result = self->C_OpenSession(slot, flags | CKF_SERIAL_SESSION, NULL, Notify, &RETVAL->handle);
+	CK_RV result = self->funcs->C_OpenSession(slot, flags | CKF_SERIAL_SESSION, NULL, Notify, &RETVAL->handle);
 	if (result != CKR_OK)
 		croak_with("Could not open session", result);
 OUTPUT:
@@ -1650,13 +1653,13 @@ AV* mechanisms(Crypt::HSM self, CK_SLOT_ID slot)
 PPCODE:
 	CK_MECHANISM_TYPE* types;
 	CK_ULONG length;
-	CK_RV result = self->C_GetMechanismList(slot, NULL, &length);
+	CK_RV result = self->funcs->C_GetMechanismList(slot, NULL, &length);
 	if (result != CKR_OK)
 		croak_with("Couldn't get mechanisms length", result);
 
 	Newxz(types, length, CK_MECHANISM_TYPE);
 	SAVEFREEPV(types);
-	result = self->C_GetMechanismList(slot, types, &length);
+	result = self->funcs->C_GetMechanismList(slot, types, &length);
 	if (result != CKR_OK)
 		croak_with("Couldn't get mechanisms", result);
 
@@ -1673,7 +1676,7 @@ PPCODE:
 HV* mechanism_info(Crypt::HSM self, CK_SLOT_ID slot, CK_MECHANISM_TYPE mechanism)
 CODE:
 	CK_MECHANISM_INFO info;
-	CK_RV result = self->C_GetMechanismInfo(slot, mechanism, &info);
+	CK_RV result = self->funcs->C_GetMechanismInfo(slot, mechanism, &info);
 	if (result != CKR_OK)
 		croak_with("Couldn't get mechanism info", result);
 
@@ -1687,7 +1690,7 @@ OUTPUT:
 
 AV* close_all_sessions(Crypt::HSM self, CK_SLOT_ID slot)
 CODE:
-	CK_RV result = self->C_CloseAllSessions(slot);
+	CK_RV result = self->funcs->C_CloseAllSessions(slot);
 	if (result != CKR_OK)
 		croak_with("Could not open session", result);
 
@@ -1701,7 +1704,7 @@ CODE:
 	memset(label_buffer, ' ', 32);
 	memcpy(label_buffer, labelPV, MIN(label_len, 32));
 
-	CK_RV result = self->C_InitToken(slot, pinPV, pin_len, label_buffer);
+	CK_RV result = self->funcs->C_InitToken(slot, pinPV, pin_len, label_buffer);
 	if (result != CKR_OK)
 		croak_with("Could not initialize token", result);
 
