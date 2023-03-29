@@ -23,3 +23,11 @@ use Crypt::HSM;
 =head1 DESCRIPTION
 
 This is a base-class for streaming actions.
+
+=method get_state()
+
+Get a copy of the cryptographic operations state of this operation
+
+=method set_state($state)
+
+Set a the cryptographic operations state of this operation.

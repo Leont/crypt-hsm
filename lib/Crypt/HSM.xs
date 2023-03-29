@@ -1530,6 +1530,8 @@ static void S_session_refcount_decrement(pTHX_ struct Session* session) {
 
 struct Stream {
 	struct Session* session;
+	CK_OBJECT_HANDLE encrypt_key;
+	CK_OBJECT_HANDLE sign_key;
 };
 
 typedef struct Stream* Crypt__HSM__Stream;
@@ -1955,6 +1957,7 @@ CODE:
 
 	Newxz(RETVAL, 1, struct Stream);
 	RETVAL->session = session_refcount_increment(self);
+	RETVAL->encrypt_key = key;
 OUTPUT:
 	RETVAL
 
@@ -1991,6 +1994,7 @@ CODE:
 
 	Newxz(RETVAL, 1, struct Stream);
 	RETVAL->session = session_refcount_increment(self);
+	RETVAL->encrypt_key = key;
 OUTPUT:
 	RETVAL
 
@@ -2027,6 +2031,7 @@ CODE:
 
 	Newxz(RETVAL, 1, struct Stream);
 	RETVAL->session = session_refcount_increment(self);
+	RETVAL->sign_key = key;
 OUTPUT:
 	RETVAL
 
@@ -2063,6 +2068,7 @@ CODE:
 
 	Newxz(RETVAL, 1, struct Stream);
 	RETVAL->session = session_refcount_increment(self);
+	RETVAL->sign_key = key;
 OUTPUT:
 	RETVAL
 
@@ -2166,6 +2172,32 @@ int CLONE_SKIP();
 
 
 MODULE = Crypt::HSM  PACKAGE = Crypt::HSM::Stream
+
+
+SV* get_state(Crypt::HSM::Stream self)
+CODE:
+	CK_ULONG length;
+	CK_RV result = self->session->provider->funcs->C_GetOperationState(self->session->handle, NULL, &length);
+	if (result != CKR_OK)
+		croak_with("Couldn't get operation state", result);
+	RETVAL = newSV(length);
+	SvPOK_only(RETVAL);
+	if (length) {
+		result = self->session->provider->funcs->C_GetOperationState(self->session->handle, SvPVbyte_nolen(RETVAL), &length);
+		SvCUR(RETVAL) = length;
+		if (result != CKR_OK)
+			croak_with("Couldn't get operation state", result);
+	}
+OUTPUT:
+	RETVAL
+
+void set_state(Crypt::HSM::Stream self, SV* state)
+CODE:
+	STRLEN stateLen;
+	char* statePV = SvPVbyte(state, stateLen);
+	CK_RV result = self->session->provider->funcs->C_SetOperationState(self->session->handle, statePV, stateLen, self->encrypt_key, self->sign_key);
+	if (result != CKR_OK)
+		croak_with("Couldn't set operation state", result);
 
 
 void DESTROY(Crypt::HSM::Stream self)
