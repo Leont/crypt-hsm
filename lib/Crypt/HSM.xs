@@ -1581,8 +1581,8 @@ CODE:
 		croak_with("Couldn't get slot info", result);
 
 	RETVAL = newHV();
-	hv_stores(RETVAL, "slot-description", trimmed_value((char*)info.slotDescription, 64));
-	hv_stores(RETVAL, "manufacturer-id", trimmed_value((char*)info.manufacturerID, 32));
+	hv_stores(RETVAL, "slot-description", trimmed_value(info.slotDescription, 64));
+	hv_stores(RETVAL, "manufacturer-id", trimmed_value(info.manufacturerID, 32));
 	hv_stores(RETVAL, "flags", newRV_noinc((SV*)reverse_flags(slot_flags, info.flags)));
 	hv_stores(RETVAL, "hardware-version", newSVpvf("%d.%d", info.hardwareVersion.major, info.hardwareVersion.minor));
 	hv_stores(RETVAL, "firmware-version", newSVpvf("%d.%d", info.firmwareVersion.major, info.firmwareVersion.minor));
@@ -1597,10 +1597,10 @@ CODE:
 		croak_with("Couldn't get token info", result);
 
 	RETVAL = newHV();
-	hv_stores(RETVAL, "label", trimmed_value((char*)info.label, 32));
+	hv_stores(RETVAL, "label", trimmed_value(info.label, 32));
 	hv_stores(RETVAL, "manufacturer-id", trimmed_value((char*)info.manufacturerID, 32));
-	hv_stores(RETVAL, "model", trimmed_value((char*)info.model, 16));
-	hv_stores(RETVAL, "serial-number", trimmed_value((char*)info.serialNumber, 16));
+	hv_stores(RETVAL, "model", trimmed_value(info.model, 16));
+	hv_stores(RETVAL, "serial-number", trimmed_value(info.serialNumber, 16));
 	hv_stores(RETVAL, "flags", newRV_noinc((SV*)reverse_flags(token_flags, info.flags)));
 	hv_stores(RETVAL, "max-session-count", newSVuv(info.ulMaxSessionCount));
 	hv_stores(RETVAL, "session-count", newSVuv(info.ulSessionCount));
@@ -1614,7 +1614,7 @@ CODE:
 	hv_stores(RETVAL, "free-private-memory", newSVuv(info.ulFreePrivateMemory));
 	hv_stores(RETVAL, "hardware-version", newSVpvf("%d.%d", info.hardwareVersion.major, info.hardwareVersion.minor));
 	hv_stores(RETVAL, "firmware-version", newSVpvf("%d.%d", info.firmwareVersion.major, info.firmwareVersion.minor));
-	hv_stores(RETVAL, "utc-time", trimmed_value((char*)info.utcTime, 16));
+	hv_stores(RETVAL, "utc-time", trimmed_value(info.utcTime, 16));
 OUTPUT:
 	RETVAL
 
