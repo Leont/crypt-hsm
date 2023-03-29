@@ -1640,6 +1640,7 @@ PPCODE:
 		croak_with("Couldn't get mechanisms length", result);
 
 	Newxz(types, length, CK_MECHANISM_TYPE);
+	SAVEFREEPV(types);
 	result = self->C_GetMechanismList(slot, types, &length);
 	if (result != CKR_OK)
 		croak_with("Couldn't get mechanisms", result);
@@ -1698,6 +1699,7 @@ MODULE = Crypt::HSM  PACKAGE = Crypt::HSM::Session PREFIX = session_
 void DESTROY(Crypt::HSM::Session self)
 CODE:
 	self->funcs->C_CloseSession(self->handle);
+	Safefree(self);
 
 HV* info(Crypt::HSM::Session self)
 CODE:
