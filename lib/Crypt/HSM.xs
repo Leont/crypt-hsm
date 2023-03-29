@@ -1556,8 +1556,12 @@ CODE:
 	CK_RV rc = C_GetFunctionList(&RETVAL->funcs);
 	if (rc != CKR_OK)
 		croak_with("Call to C_GetFunctionList failed", rc);
-
+#ifdef USE_THREADS
+	CK_C_INITIALIZE_ARGS init_args = { NULL, NULL, NULL, NULL, CKF_OS_LOCKING_OK, NULL };
+	rc = RETVAL->funcs->C_Initialize(&init_args);
+#else
 	rc = RETVAL->funcs->C_Initialize(NULL);
+#endif
 	if (rc != CKR_OK)
 		croak_with("Call to C_Initialize failed", rc);
 OUTPUT:
