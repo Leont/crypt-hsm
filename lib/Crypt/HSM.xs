@@ -1529,6 +1529,16 @@ static void S_provider_refcount_decrement(pTHX_ struct Provider* provider) {
 }
 #define provider_refcount_decrement(provider) S_provider_refcount_decrement(aTHX_ provider)
 
+static int provider_dup(pTHX_ MAGIC* magic, CLONE_PARAMS* params) {
+	provider_refcount_increment((struct Provider*)magic->mg_ptr);
+}
+
+static int provider_free(pTHX_ SV* sv, MAGIC* magic) {
+	provider_refcount_decrement((struct Provider*)magic->mg_ptr);
+}
+
+const static MGVTBL Crypt__HSM_magic = { NULL, NULL, NULL, NULL, provider_free, NULL, provider_dup, NULL };
+
 struct Session {
 	CK_SESSION_HANDLE handle;
 	struct Provider* provider;
@@ -1567,11 +1577,6 @@ CODE:
 		croak_with("Call to C_Initialize failed", rc);
 OUTPUT:
 	RETVAL
-
-
-void DESTROY(Crypt::HSM self)
-CODE:
-	provider_refcount_decrement(self);
 
 
 HV* info(Crypt::HSM self)
@@ -1730,9 +1735,6 @@ CODE:
 	CK_RV result = self->funcs->C_InitToken(slot, pinPV, pin_len, label_buffer);
 	if (result != CKR_OK)
 		croak_with("Could not initialize token", result);
-
-
-int CLONE_SKIP();
 
 
 MODULE = Crypt::HSM  PACKAGE = Crypt::HSM::Session PREFIX = session_
