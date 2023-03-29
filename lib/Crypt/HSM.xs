@@ -263,12 +263,6 @@ static AV* S_reverse_flags(pTHX_ const map table, size_t table_size, CK_ULONG in
 }
 #define reverse_flags(table, input) S_reverse_flags(aTHX_ table, sizeof table / sizeof *table, input)
 
-struct Session {
-	CK_SESSION_HANDLE handle;
-	CK_FUNCTION_LIST_PTR funcs;
-};
-typedef struct Session* Crypt__HSM__Session;
-
 static const map mechanisms = {
 	{ STR_WITH_LEN("rsa-pkcs-key-pair-gen"), CKM_RSA_PKCS_KEY_PAIR_GEN },
 	{ STR_WITH_LEN("rsa-pkcs"), CKM_RSA_PKCS },
@@ -1518,6 +1512,12 @@ struct Provider {
 };
 typedef struct Provider* Crypt__HSM;
 
+struct Session {
+	CK_SESSION_HANDLE handle;
+	struct Provider* provider;
+};
+typedef struct Session* Crypt__HSM__Session;
+
 #define CLONE_SKIP() 1
 
 MODULE = Crypt::HSM	 PACKAGE = Crypt::HSM		PREFIX = provider_
@@ -1641,7 +1641,7 @@ CODE:
 	CK_NOTIFY Notify = NULL;
 	Newxz(RETVAL, 1, struct Session);
 
-	RETVAL->funcs = self->funcs;
+	RETVAL->provider = self;
 
 	CK_RV result = self->funcs->C_OpenSession(slot, flags | CKF_SERIAL_SESSION, NULL, Notify, &RETVAL->handle);
 	if (result != CKR_OK)
@@ -1716,13 +1716,13 @@ MODULE = Crypt::HSM  PACKAGE = Crypt::HSM::Session PREFIX = session_
 
 void DESTROY(Crypt::HSM::Session self)
 CODE:
-	self->funcs->C_CloseSession(self->handle);
+	self->provider->funcs->C_CloseSession(self->handle);
 	Safefree(self);
 
 HV* info(Crypt::HSM::Session self)
 CODE:
 	CK_SESSION_INFO info;
-	CK_RV result = self->funcs->C_GetSessionInfo(self->handle, &info);
+	CK_RV result = self->provider->funcs->C_GetSessionInfo(self->handle, &info);
 	if (result != CKR_OK)
 		croak_with("Couldn't get session info", result);
 
@@ -1739,14 +1739,14 @@ void login(Crypt::HSM::Session self, CK_USER_TYPE type, SV* pin)
 CODE:
 	STRLEN pin_len;
 	char* pinPV = SvPVutf8(pin, pin_len);
-	CK_RV result = self->funcs->C_Login(self->handle, type, pinPV, pin_len);
+	CK_RV result = self->provider->funcs->C_Login(self->handle, type, pinPV, pin_len);
 	if (result != CKR_OK)
 		croak_with("Could not log in", result);
 
 
 void logout(Crypt::HSM::Session self)
 CODE:
-	CK_RV result = self->funcs->C_Logout(self->handle);
+	CK_RV result = self->provider->funcs->C_Logout(self->handle);
 	if (result != CKR_OK)
 		croak_with("Could not log out", result);
 
@@ -1756,7 +1756,7 @@ CODE:
 	STRLEN pin_len;
 	char* pinPV = SvPVutf8(pin, pin_len);
 
-	CK_RV result = self->funcs->C_InitPIN(self->handle, pinPV, pin_len);
+	CK_RV result = self->provider->funcs->C_InitPIN(self->handle, pinPV, pin_len);
 	if (result != CKR_OK)
 		croak_with("Could not initialize pin", result);
 
@@ -1767,14 +1767,14 @@ CODE:
 	char* old_pinPV = SvPVutf8(old_pin, old_pin_len);
 	char* new_pinPV = SvPVutf8(new_pin, new_pin_len);
 
-	CK_RV result = self->funcs->C_SetPIN(self->handle, old_pinPV, old_pin_len, new_pinPV, new_pin_len);
+	CK_RV result = self->provider->funcs->C_SetPIN(self->handle, old_pinPV, old_pin_len, new_pinPV, new_pin_len);
 	if (result != CKR_OK)
 		croak_with("Could not set pin", result);
 
 
 CK_OBJECT_HANDLE create_object(Crypt::HSM::Session self, Attributes template)
 CODE:
-	CK_RV result = self->funcs->C_CreateObject(self->handle, template.member, template.length, &RETVAL);
+	CK_RV result = self->provider->funcs->C_CreateObject(self->handle, template.member, template.length, &RETVAL);
 	if (result != CKR_OK)
 		croak_with("Could not create object", result);
 OUTPUT:
@@ -1783,7 +1783,7 @@ OUTPUT:
 
 CK_OBJECT_HANDLE copy_object(Crypt::HSM::Session self, CK_OBJECT_HANDLE source, Attributes template)
 CODE:
-	CK_RV result = self->funcs->C_CopyObject(self->handle, source, template.member, template.length, &RETVAL);
+	CK_RV result = self->provider->funcs->C_CopyObject(self->handle, source, template.member, template.length, &RETVAL);
 	if (result != CKR_OK)
 		croak_with("Could not copy object", result);
 OUTPUT:
@@ -1792,7 +1792,7 @@ OUTPUT:
 
 CK_OBJECT_HANDLE destroy_object(Crypt::HSM::Session self, CK_OBJECT_HANDLE source)
 CODE:
-	CK_RV result = self->funcs->C_DestroyObject(self->handle, source);
+	CK_RV result = self->provider->funcs->C_DestroyObject(self->handle, source);
 	if (result != CKR_OK)
 		croak_with("Could not destroy object", result);
 OUTPUT:
@@ -1800,7 +1800,7 @@ OUTPUT:
 
 CK_ULONG object_size(Crypt::HSM::Session self, CK_OBJECT_HANDLE source)
 CODE:
-	CK_RV result = self->funcs->C_GetObjectSize(self->handle, source, &RETVAL);
+	CK_RV result = self->provider->funcs->C_GetObjectSize(self->handle, source, &RETVAL);
 	if (result != CKR_OK)
 		croak_with("Could not get object size", result);
 OUTPUT:
@@ -1822,7 +1822,7 @@ CODE:
 		attributes.member[i].type = item->value;
 	}
 
-	CK_RV result = self->funcs->C_GetAttributeValue(self->handle, source, attributes.member, attributes.length);
+	CK_RV result = self->provider->funcs->C_GetAttributeValue(self->handle, source, attributes.member, attributes.length);
 	if (result != CKR_OK && result != CKR_ATTRIBUTE_SENSITIVE && result != CKR_ATTRIBUTE_TYPE_INVALID && result !=CKR_BUFFER_TOO_SMALL)
 		croak_with("Could not get attributes", result);
 
@@ -1836,7 +1836,7 @@ CODE:
 		}
 	}
 
-	result = self->funcs->C_GetAttributeValue(self->handle, source, attributes.member, attributes.length);
+	result = self->provider->funcs->C_GetAttributeValue(self->handle, source, attributes.member, attributes.length);
 	if (result != CKR_OK && result != CKR_ATTRIBUTE_SENSITIVE && result != CKR_ATTRIBUTE_TYPE_INVALID && result != CKR_BUFFER_TOO_SMALL)
 		croak_with("Could not get attributes", result);
 
@@ -1852,30 +1852,30 @@ OUTPUT:
 
 void set_attributes(Crypt::HSM::Session self, CK_OBJECT_HANDLE source, Attributes attributes)
 CODE:
-	CK_RV result = self->funcs->C_SetAttributeValue(self->handle, source, attributes.member, attributes.length);
+	CK_RV result = self->provider->funcs->C_SetAttributeValue(self->handle, source, attributes.member, attributes.length);
 	if (result != CKR_OK)
 		croak_with("Could not set attributes", result);
 
 
 void find_objects(Crypt::HSM::Session self, Attributes attributes)
 PPCODE:
-	CK_RV result = self->funcs->C_FindObjectsInit(self->handle, attributes.member, attributes.length);
+	CK_RV result = self->provider->funcs->C_FindObjectsInit(self->handle, attributes.member, attributes.length);
 	if (result != CKR_OK)
 		croak_with("Could not find objects", result);
 
 	while (1) {
 		CK_OBJECT_HANDLE current;
 		CK_ULONG actual;
-		CK_RV result = self->funcs->C_FindObjects(self->handle, &current, 1, &actual);
+		CK_RV result = self->provider->funcs->C_FindObjects(self->handle, &current, 1, &actual);
 		if (result != CKR_OK) {
-			self->funcs->C_FindObjectsFinal(self->handle);
+			self->provider->funcs->C_FindObjectsFinal(self->handle);
 			croak_with("Could not find objects", result);
 		}
 		if (actual == 0)
 			break;
 		mXPUSHu(current);
 	}
-	self->funcs->C_FindObjectsFinal(self->handle);
+	self->provider->funcs->C_FindObjectsFinal(self->handle);
 
 
 void generate_keypair(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Attributes publicKeyTemplate, Attributes privateKeyTemplate)
@@ -1884,7 +1884,7 @@ PPCODE:
 	CK_OBJECT_HANDLE privateKey;
 
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 4);
-	CK_RV result = self->funcs->C_GenerateKeyPair(self->handle, &mechanism, publicKeyTemplate.member, publicKeyTemplate.length, privateKeyTemplate.member, privateKeyTemplate.length, &publicKey, &privateKey);
+	CK_RV result = self->provider->funcs->C_GenerateKeyPair(self->handle, &mechanism, publicKeyTemplate.member, publicKeyTemplate.length, privateKeyTemplate.member, privateKeyTemplate.length, &publicKey, &privateKey);
 	if (result != CKR_OK)
 		croak_with("Could not create keypair", result);
 
@@ -1895,7 +1895,7 @@ PPCODE:
 CK_OBJECT_HANDLE generate_key(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Attributes keyTemplate)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 3);
-	CK_RV result = self->funcs->C_GenerateKey(self->handle, &mechanism, keyTemplate.member, keyTemplate.length, &RETVAL);
+	CK_RV result = self->provider->funcs->C_GenerateKey(self->handle, &mechanism, keyTemplate.member, keyTemplate.length, &RETVAL);
 	if (result != CKR_OK)
 		croak_with("Could not create key", result);
 OUTPUT:
@@ -1905,20 +1905,20 @@ OUTPUT:
 SV* encrypt(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, CK_OBJECT_HANDLE key, SV* data, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 4);
-	CK_RV result = self->funcs->C_EncryptInit(self->handle, &mechanism, key);
+	CK_RV result = self->provider->funcs->C_EncryptInit(self->handle, &mechanism, key);
 	if (result != CKR_OK)
 		croak_with("Couldn't initialize encryption", result);
 
 	STRLEN dataLen;
 	CK_ULONG encryptedDataLen;
 	const char* dataPV = SvPVbyte(data, dataLen);
-	result = self->funcs->C_Encrypt(self->handle, (CK_BYTE_PTR)dataPV, dataLen, NULL, &encryptedDataLen);
+	result = self->provider->funcs->C_Encrypt(self->handle, (CK_BYTE_PTR)dataPV, dataLen, NULL, &encryptedDataLen);
 	if (result != CKR_OK)
 		croak_with("Couldn't compute encrypted length", result);
 
 	RETVAL = newSV(encryptedDataLen);
 	SvPOK_only(RETVAL);
-	result = self->funcs->C_Encrypt(self->handle, (CK_BYTE_PTR)dataPV, dataLen, SvPVbyte_nolen(RETVAL), &encryptedDataLen);
+	result = self->provider->funcs->C_Encrypt(self->handle, (CK_BYTE_PTR)dataPV, dataLen, SvPVbyte_nolen(RETVAL), &encryptedDataLen);
 	SvCUR(RETVAL) = encryptedDataLen;
 	if (result != CKR_OK)
 		croak_with("Couldn't encrypt", result);
@@ -1929,20 +1929,20 @@ OUTPUT:
 SV* decrypt(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, CK_OBJECT_HANDLE key, SV* data, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 4);
-	CK_RV result = self->funcs->C_DecryptInit(self->handle, &mechanism, key);
+	CK_RV result = self->provider->funcs->C_DecryptInit(self->handle, &mechanism, key);
 	if (result != CKR_OK)
 		croak_with("Couldn't initialize decryption", result);
 
 	STRLEN dataLen;
 	CK_ULONG decryptedDataLen;
 	const char* dataPV = SvPVbyte(data, dataLen);
-	result = self->funcs->C_Decrypt(self->handle, (CK_BYTE_PTR)dataPV, dataLen, NULL, &decryptedDataLen);
+	result = self->provider->funcs->C_Decrypt(self->handle, (CK_BYTE_PTR)dataPV, dataLen, NULL, &decryptedDataLen);
 	if (result != CKR_OK)
 		croak_with("Couldn't compute decrypted length", result);
 
 	RETVAL = newSV(decryptedDataLen);
 	SvPOK_only(RETVAL);
-	result = self->funcs->C_Decrypt(self->handle, (CK_BYTE_PTR)dataPV, dataLen, SvPVbyte_nolen(RETVAL), &decryptedDataLen);
+	result = self->provider->funcs->C_Decrypt(self->handle, (CK_BYTE_PTR)dataPV, dataLen, SvPVbyte_nolen(RETVAL), &decryptedDataLen);
 	SvCUR(RETVAL) = decryptedDataLen;
 	if (result != CKR_OK)
 		croak_with("Couldn't decrypt", result);
@@ -1953,20 +1953,20 @@ OUTPUT:
 SV* sign(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, CK_OBJECT_HANDLE key, SV* data, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 4);
-	CK_RV result = self->funcs->C_SignInit(self->handle, &mechanism, key);
+	CK_RV result = self->provider->funcs->C_SignInit(self->handle, &mechanism, key);
 	if (result != CKR_OK)
 		croak_with("Couldn't initialize signing", result);
 
 	STRLEN dataLen;
 	CK_ULONG signedDataLen;
 	const char* dataPV = SvPVbyte(data, dataLen);
-	result = self->funcs->C_Sign(self->handle, (CK_BYTE_PTR)dataPV, dataLen, NULL, &signedDataLen);
+	result = self->provider->funcs->C_Sign(self->handle, (CK_BYTE_PTR)dataPV, dataLen, NULL, &signedDataLen);
 	if (result != CKR_OK)
 		croak_with("Couldn't compute signed length", result);
 
 	RETVAL = newSV(signedDataLen);
 	SvPOK_only(RETVAL);
-	result = self->funcs->C_Sign(self->handle, (CK_BYTE_PTR)dataPV, dataLen, SvPVbyte_nolen(RETVAL), &signedDataLen);
+	result = self->provider->funcs->C_Sign(self->handle, (CK_BYTE_PTR)dataPV, dataLen, SvPVbyte_nolen(RETVAL), &signedDataLen);
 	SvCUR(RETVAL) = signedDataLen;
 	if (result != CKR_OK)
 		croak_with("Couldn't sign", result);
@@ -1977,7 +1977,7 @@ OUTPUT:
 bool verify(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, CK_OBJECT_HANDLE key, SV* data, SV* signature, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 5);
-	CK_RV result = self->funcs->C_VerifyInit(self->handle, &mechanism, key);
+	CK_RV result = self->provider->funcs->C_VerifyInit(self->handle, &mechanism, key);
 	if (result != CKR_OK)
 		croak_with("Couldn't initialize verifying", result);
 
@@ -1986,7 +1986,7 @@ CODE:
 	STRLEN signatureLen;
 	char* signaturePV = SvPVbyte(signature, signatureLen);
 
-	result = self->funcs->C_Verify(self->handle, dataPV, dataLen, signaturePV, signatureLen);
+	result = self->provider->funcs->C_Verify(self->handle, dataPV, dataLen, signaturePV, signatureLen);
 
 	RETVAL = result == CKR_OK;
 OUTPUT:
@@ -1996,20 +1996,20 @@ OUTPUT:
 SV* digest(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, SV* data, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 3);
-	CK_RV result = self->funcs->C_DigestInit(self->handle, &mechanism);
+	CK_RV result = self->provider->funcs->C_DigestInit(self->handle, &mechanism);
 	if (result != CKR_OK)
 		croak_with("Couldn't initialize digestion", result);
 
 	STRLEN dataLen;
 	CK_ULONG digestedDataLen;
 	const char* dataPV = SvPVbyte(data, dataLen);
-	result = self->funcs->C_Digest(self->handle, (CK_BYTE_PTR)dataPV, dataLen, NULL, &digestedDataLen);
+	result = self->provider->funcs->C_Digest(self->handle, (CK_BYTE_PTR)dataPV, dataLen, NULL, &digestedDataLen);
 	if (result != CKR_OK)
 		croak_with("Couldn't compute digested length", result);
 
 	RETVAL = newSV(digestedDataLen);
 	SvPOK_only(RETVAL);
-	result = self->funcs->C_Digest(self->handle, (CK_BYTE_PTR)dataPV, dataLen, SvPVbyte_nolen(RETVAL), &digestedDataLen);
+	result = self->provider->funcs->C_Digest(self->handle, (CK_BYTE_PTR)dataPV, dataLen, SvPVbyte_nolen(RETVAL), &digestedDataLen);
 	SvCUR(RETVAL) = digestedDataLen;
 	if (result != CKR_OK)
 		croak_with("Couldn't digest", result);
@@ -2021,13 +2021,13 @@ SV* wrap_key(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, CK_OBJE
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 4);
 	CK_ULONG length;
-	CK_RV result = self->funcs->C_WrapKey(self->handle, &mechanism, wrappingKey, key, NULL, &length);
+	CK_RV result = self->provider->funcs->C_WrapKey(self->handle, &mechanism, wrappingKey, key, NULL, &length);
 	if (result != CKR_OK)
 		croak_with("Couldn't compute wraped length", result);
 
 	RETVAL = newSV(length);
 	SvPOK_only(RETVAL);
-	result = self->funcs->C_WrapKey(self->handle, &mechanism, wrappingKey, key, SvPVbyte_nolen(RETVAL), &length);
+	result = self->provider->funcs->C_WrapKey(self->handle, &mechanism, wrappingKey, key, SvPVbyte_nolen(RETVAL), &length);
 	SvCUR(RETVAL) = length;
 	if (result != CKR_OK)
 		croak_with("Couldn't wrap", result);
@@ -2039,7 +2039,7 @@ CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 5);
 	STRLEN wrappedLen;
 	char* wrappedPV = SvPVbyte(wrapped, wrappedLen);
-	CK_RV result = self->funcs->C_UnwrapKey(self->handle, &mechanism, unwrappingKey, wrappedPV, wrappedLen, attributes.member, attributes.length, &RETVAL);
+	CK_RV result = self->provider->funcs->C_UnwrapKey(self->handle, &mechanism, unwrappingKey, wrappedPV, wrappedLen, attributes.member, attributes.length, &RETVAL);
 	if (result != CKR_OK)
 		croak_with("Couldn't unwrap", result);
 OUTPUT:
@@ -2048,7 +2048,7 @@ OUTPUT:
 CK_OBJECT_HANDLE derive_key(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, CK_OBJECT_HANDLE baseKey, Attributes attributes, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 4);
-	CK_RV result = self->funcs->C_DeriveKey(self->handle, &mechanism, baseKey, attributes.member, attributes.length, &RETVAL);
+	CK_RV result = self->provider->funcs->C_DeriveKey(self->handle, &mechanism, baseKey, attributes.member, attributes.length, &RETVAL);
 	if (result != CKR_OK)
 		croak_with("Couldn't derive key", result);
 OUTPUT:
@@ -2059,7 +2059,7 @@ void seed_random(Crypt::HSM::Session self, SV* seed)
 CODE:
 	STRLEN seedLen;
 	char* seedPV = SvPVbyte(seed, seedLen);
-	CK_RV result = self->funcs->C_SeedRandom(self->handle, seedPV, seedLen);
+	CK_RV result = self->provider->funcs->C_SeedRandom(self->handle, seedPV, seedLen);
 	if (result != CKR_OK)
 		croak_with("Couldn't seed entropy pool", result);
 
@@ -2069,7 +2069,7 @@ CODE:
 	RETVAL = newSV(length);
 	SvPOK_only(RETVAL);
 	SvCUR(RETVAL) = length;
-	CK_RV result = self->funcs->C_GenerateRandom(self->handle, SvPVbyte_nolen(RETVAL), length);
+	CK_RV result = self->provider->funcs->C_GenerateRandom(self->handle, SvPVbyte_nolen(RETVAL), length);
 	if (result != CKR_OK)
 		croak_with("Couldn't generate randomness", result);
 OUTPUT:
