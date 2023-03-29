@@ -994,6 +994,21 @@ CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** array, si
 
 			break;
 		}
+
+		case CKM_EDDSA: {
+			if (array_len) {
+				CK_EDDSA_PARAMS* params;
+				Newxz(params, 1, CK_EDDSA_PARAMS);
+				SAVEFREEPV(params);
+				result.pParameter = params;
+				result.ulParameterLen = sizeof *params;
+
+				params->phFlag = SvTRUE(array[0]);
+
+				if (array_len > 1)
+					params->pContextData = SvPVbyte(array[0], params->ulContextDataLen);
+			}
+		}
 	}
 
 	return result;
