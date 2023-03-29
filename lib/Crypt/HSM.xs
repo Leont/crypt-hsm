@@ -6,6 +6,7 @@
 #include "ppport.h"
 
 #include "cryptoki.h"
+#include "refcount.h"
 
 #ifdef WIN32
 #define dlopen(file, flags) ((void*)win32_dynaload(file))
@@ -1509,18 +1510,18 @@ SV* S_trimmed_value(pTHX_ const char* ptr, size_t max) {
 #define trimmed_value(ptr, max) S_trimmed_value(aTHX_ ptr, max)
 
 struct Provider {
-	UV refcount;
+	Refcount refcount;
 	void* handle;
 	CK_FUNCTION_LIST* funcs;
 };
 typedef struct Provider* Crypt__HSM;
 
 static void provider_refcount_increment(struct Provider* provider) {
-	++provider->refcount;
+	refcount_inc(&provider->refcount);
 }
 
 static void S_provider_refcount_decrement(pTHX_ struct Provider* provider) {
-	if (--provider->refcount == 0) {
+	if (refcount_dec(&provider->refcount) == 1) {
 		provider->funcs->C_Finalize(NULL);
 		dlclose(provider->handle);
 		Safefree(provider);
@@ -1543,7 +1544,7 @@ PROTOTYPES: DISABLED
 Crypt::HSM load(SV* class, const char* path)
 CODE:
 	Newxz(RETVAL, 1, struct Provider);
-	RETVAL->refcount = 1;
+	refcount_init(&RETVAL->refcount, 1);
 
 	RETVAL->handle = dlopen(path, RTLD_LAZY | RTLD_LOCAL);
 	if (!RETVAL->handle)
