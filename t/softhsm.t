@@ -30,6 +30,8 @@ for my $id ( @slots ) {
 
 my $session = $provider->open_session($slots[0]);
 
+undef $provider;
+
 my $sessionInfo = $session->info;
 note explain $sessionInfo;
 

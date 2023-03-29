@@ -10,6 +10,7 @@
 #ifdef WIN32
 #define dlopen(file, flags) ((void*)win32_dynaload(file))
 #define dlsym(handle, symbol) ((void*)GetProcAddress((HINSTANCE)handle, symbol))
+#define dlclose(handle) (FreeLibrary((HMODULE)handle))
 #else
 #include "dlfcn.h"
 #endif
@@ -1508,9 +1509,24 @@ SV* S_trimmed_value(pTHX_ const char* ptr, size_t max) {
 #define trimmed_value(ptr, max) S_trimmed_value(aTHX_ ptr, max)
 
 struct Provider {
+	UV refcount;
+	void* handle;
 	CK_FUNCTION_LIST* funcs;
 };
 typedef struct Provider* Crypt__HSM;
+
+static void provider_refcount_increment(struct Provider* provider) {
+	++provider->refcount;
+}
+
+static void S_provider_refcount_decrement(pTHX_ struct Provider* provider) {
+	if (--provider->refcount == 0) {
+		provider->funcs->C_Finalize(NULL);
+		dlclose(provider->handle);
+		Safefree(provider);
+	}
+}
+#define provider_refcount_decrement(provider) S_provider_refcount_decrement(aTHX_ provider)
 
 struct Session {
 	CK_SESSION_HANDLE handle;
@@ -1527,12 +1543,13 @@ PROTOTYPES: DISABLED
 Crypt::HSM load(SV* class, const char* path)
 CODE:
 	Newxz(RETVAL, 1, struct Provider);
+	RETVAL->refcount = 1;
 
-	void* handle = dlopen(path, RTLD_LAZY | RTLD_LOCAL);
-	if (!handle)
+	RETVAL->handle = dlopen(path, RTLD_LAZY | RTLD_LOCAL);
+	if (!RETVAL->handle)
 		Perl_croak(aTHX_ "Can not open library");
 
-	CK_RV (*C_GetFunctionList)() = (CK_RV (*)())dlsym(handle, "C_GetFunctionList");
+	CK_RV (*C_GetFunctionList)() = (CK_RV (*)())dlsym(RETVAL->handle, "C_GetFunctionList");
 	if (C_GetFunctionList == NULL)
 		Perl_croak(aTHX_ "Symbol lookup failed");
 
@@ -1549,7 +1566,7 @@ OUTPUT:
 
 void DESTROY(Crypt::HSM self)
 CODE:
-	self->funcs->C_Finalize(NULL);
+	provider_refcount_decrement(self);
 
 
 HV* info(Crypt::HSM self)
@@ -1642,6 +1659,7 @@ CODE:
 	Newxz(RETVAL, 1, struct Session);
 
 	RETVAL->provider = self;
+	provider_refcount_increment(self);
 
 	CK_RV result = self->funcs->C_OpenSession(slot, flags | CKF_SERIAL_SESSION, NULL, Notify, &RETVAL->handle);
 	if (result != CKR_OK)
@@ -1717,6 +1735,7 @@ MODULE = Crypt::HSM  PACKAGE = Crypt::HSM::Session PREFIX = session_
 void DESTROY(Crypt::HSM::Session self)
 CODE:
 	self->provider->funcs->C_CloseSession(self->handle);
+	provider_refcount_decrement(self->provider);
 	Safefree(self);
 
 HV* info(Crypt::HSM::Session self)
