@@ -151,7 +151,7 @@ static const map errors = {
 	{ STR_WITH_LEN("vendor defined"), CKR_VENDOR_DEFINED },
 };
 
-void S_croak_with(pTHX_ const char* message, CK_RV result) {
+static void S_croak_with(pTHX_ const char* message, CK_RV result) {
 	const entry* item = map_reverse_find(errors, result);
 	const char* reason = item ? item->key : "unknown";
 	Perl_croak(aTHX_ "%s: %s", message, reason);
@@ -754,7 +754,7 @@ static const map kdfs = {
 	{ STR_WITH_LEN("blake2b_512_kdf"), CKD_BLAKE2B_512_KDF },
 };
 
-void S_specialize_pss(pTHX_ CK_MECHANISM* result, CK_MECHANISM_TYPE hashAlg, CK_RSA_PKCS_MGF_TYPE generator, SV** array, size_t array_len) {
+static void S_specialize_pss(pTHX_ CK_MECHANISM* result, CK_MECHANISM_TYPE hashAlg, CK_RSA_PKCS_MGF_TYPE generator, SV** array, size_t array_len) {
 	CK_RSA_PKCS_PSS_PARAMS* params;
 	Newxz(params, 1, CK_RSA_PKCS_PSS_PARAMS);
 	SAVEFREEPV(params);
@@ -769,7 +769,7 @@ void S_specialize_pss(pTHX_ CK_MECHANISM* result, CK_MECHANISM_TYPE hashAlg, CK_
 }
 #define specialize_pss(result, type, generator, array, array_length) S_specialize_pss(aTHX_ result, type, generator, array, array_length)
 
-CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** array, size_t array_len) {
+static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** array, size_t array_len) {
 	CK_MECHANISM result = { type, NULL, 0 };
 
 	switch (type) {
@@ -1272,7 +1272,7 @@ static const attribute_entry* S_get_attribute_entry(pTHX_ const char* name, size
 }
 #define get_attribute_entry(name, name_length) S_get_attribute_entry(aTHX_ name, name_length)
 
-void S_set_intval(pTHX_ CK_ATTRIBUTE* current, CK_ULONG value) {
+static void S_set_intval(pTHX_ CK_ATTRIBUTE* current, CK_ULONG value) {
 	Newxz(current->pValue, 1, uint64_t);
 	SAVEFREEPV(current->pValue);
 	current->ulValueLen = 8;
@@ -1408,7 +1408,7 @@ static const attribute_entry* S_attribute_reverse_find(pTHX_ UV value) {
 #define get_intval(pointer) (*(const CK_ULONG*)pointer)
 
 #define reverse_attribute(attr) S_reverse_attribute(aTHX_ attr)
-SV* S_reverse_attribute(pTHX_ CK_ATTRIBUTE* attribute) {
+static SV* S_reverse_attribute(pTHX_ CK_ATTRIBUTE* attribute) {
 	if (attribute->ulValueLen == 0 || attribute->ulValueLen == CK_UNAVAILABLE_INFORMATION)
 		return &PL_sv_undef;
 
@@ -1501,7 +1501,7 @@ static const map user_types = {
 };
 #define get_user_type(input) map_get(user_types, input, "user type")
 
-SV* S_trimmed_value(pTHX_ const char* ptr, size_t max) {
+static SV* S_trimmed_value(pTHX_ const char* ptr, size_t max) {
 	ptrdiff_t last = max - 1;
 	while (last >= 0 && ptr[last] == ' ')
 		last--;
