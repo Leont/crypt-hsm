@@ -800,10 +800,10 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 			result.ulParameterLen = sizeof *params;
 
 			STRLEN len;
-			const char* cb = SvPVbyte(array[1], len);
+			const char* cb = SvPVbyte(array[0], len);
 			memcpy(params->cb, cb, MIN(len, 16));
 
-			params->ulCounterBits = array_len >= 2 ? SvUV(array[2]) : 128;
+			params->ulCounterBits = array_len >= 2 ? SvUV(array[1]) : 128;
 
 			break;
 		}
