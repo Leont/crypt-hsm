@@ -754,20 +754,20 @@ static const map kdfs = {
 	{ STR_WITH_LEN("blake2b_512_kdf"), CKD_BLAKE2B_512_KDF },
 };
 
-static void S_specialize_pss(pTHX_ CK_MECHANISM* result, CK_MECHANISM_TYPE hashAlg, CK_RSA_PKCS_MGF_TYPE generator, SV** array, size_t array_len) {
-	CK_RSA_PKCS_PSS_PARAMS* params;
-	Newxz(params, 1, CK_RSA_PKCS_PSS_PARAMS);
-	SAVEFREEPV(params);
-	result->pParameter = params;
-	result->ulParameterLen = sizeof *params;
+#define INIT_PARAMS(TYPE) \
+	TYPE* params;\
+	Newxz(params, 1, TYPE);\
+	SAVEFREEPV(params);\
+	result.pParameter = params;\
+	result.ulParameterLen = sizeof *params;
 
-	params->hashAlg = hashAlg;
-	params->mgf = generator;
-
-	if (array_len >= 1)
-		params->sLen = SvUV(array[1]);
+#define specialize_pss(result, hash, generator, array, array_length) {\
+	INIT_PARAMS(CK_RSA_PKCS_PSS_PARAMS);\
+	params->hashAlg = hash;\
+	params->mgf = generator;\
+	if (array_len >= 1)\
+		params->sLen = SvUV((array)[1]);\
 }
-#define specialize_pss(result, type, generator, array, array_length) S_specialize_pss(aTHX_ result, type, generator, array, array_length)
 
 static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** array, size_t array_len) {
 	CK_MECHANISM result = { type, NULL, 0 };
@@ -793,11 +793,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 			if (array_len < 1)
 				Perl_croak(aTHX_ "No IV given for AES CTR");
 
-			CK_AES_CTR_PARAMS* params;
-			Newxz(params, 1, CK_AES_CTR_PARAMS);
-			SAVEFREEPV(params);
-			result.pParameter = params;
-			result.ulParameterLen = sizeof *params;
+			INIT_PARAMS(CK_AES_CTR_PARAMS);
 
 			STRLEN len;
 			const char* cb = SvPVbyte(array[0], len);
@@ -812,11 +808,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 			if (array_len < 1)
 				Perl_croak(aTHX_ "No IV given for AES-GCM");
 
-			CK_GCM_PARAMS* params;
-			Newxz(params, 1, CK_GCM_PARAMS);
-			SAVEFREEPV(params);
-			result.pParameter = params;
-			result.ulParameterLen = sizeof *params;
+			INIT_PARAMS(CK_GCM_PARAMS);
 
 			params->pIv = SvPVbyte(array[0], params->ulIvLen);
 			params->ulIvBits = 8 * params->ulIvLen;
@@ -824,7 +816,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 			if (array_len >= 2 && SvOK(array[1]))
 				params->pAAD = SvPVbyte(array[1], params->ulAADLen);
 
-			params->ulTagBits = array_len >= 2 ? SvUV(array[2]) : 128;
+			params->ulTagBits = array_len >= 3 ? SvUV(array[2]) : 128;
 
 			break;
 		}
@@ -834,11 +826,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 			if (array_len < 1)
 				Perl_croak(aTHX_ "No nonce given for chacha20/salsa20");
 
-			CK_SALSA20_CHACHA20_POLY1305_PARAMS* params;
-			Newxz(params, 1, CK_SALSA20_CHACHA20_POLY1305_PARAMS);
-			SAVEFREEPV(params);
-			result.pParameter = params;
-			result.ulParameterLen = sizeof *params;
+			INIT_PARAMS(CK_SALSA20_CHACHA20_POLY1305_PARAMS);
 
 			params->pNonce = SvPVbyte(array[0], params->ulNonceLen);
 
@@ -874,11 +862,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 			if (array_len < 2)
 				Perl_croak(aTHX_ "Insufficient parameters for derivation");
 
-			CK_ECDH1_DERIVE_PARAMS* params;
-			Newxz(params, 1, CK_ECDH1_DERIVE_PARAMS);
-			SAVEFREEPV(params);
-			result.pParameter = params;
-			result.ulParameterLen = sizeof *params;
+			INIT_PARAMS(CK_ECDH1_DERIVE_PARAMS);
 
 			params->kdf = map_get(kdfs, array[0], "kdf");
 			params->pPublicData = SvPVbyte(array[1], params->ulPublicDataLen);
@@ -906,11 +890,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 			if (array_len < 1)
 				Perl_croak(aTHX_ "Insufficient parameters for derivation");
 
-			CK_KEY_DERIVATION_STRING_DATA* params;
-			Newxz(params, 1, CK_KEY_DERIVATION_STRING_DATA);
-			SAVEFREEPV(params);
-			result.pParameter = params;
-			result.ulParameterLen = sizeof *params;
+			INIT_PARAMS(CK_KEY_DERIVATION_STRING_DATA);
 
 			params->pData = SvPVbyte(array[0], params->ulLen);
 
@@ -921,11 +901,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 			if (array_len < 1)
 				Perl_croak(aTHX_ "Insufficient parameters for derivation");
 
-			CK_OBJECT_HANDLE* params;
-			Newxz(params, 1, CK_OBJECT_HANDLE);
-			SAVEFREEPV(params);
-			result.pParameter = params;
-			result.ulParameterLen = sizeof *params;
+			INIT_PARAMS(CK_OBJECT_HANDLE);
 
 			*params = SvUV(array[0]);
 
@@ -937,11 +913,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 			if (array_len < 2)
 				Perl_croak(aTHX_ "Insufficient parameters for derivation");
 
-			CK_DES_CBC_ENCRYPT_DATA_PARAMS* params;
-			Newxz(params, 1, CK_DES_CBC_ENCRYPT_DATA_PARAMS);
-			SAVEFREEPV(params);
-			result.pParameter = params;
-			result.ulParameterLen = sizeof *params;
+			INIT_PARAMS(CK_DES_CBC_ENCRYPT_DATA_PARAMS);
 
 			params->pData = SvPVbyte(array[0], params->length);
 			STRLEN length;
@@ -955,11 +927,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 			if (array_len < 2)
 				Perl_croak(aTHX_ "Insufficient parameters for derivation");
 
-			CK_DES_CBC_ENCRYPT_DATA_PARAMS* params;
-			Newxz(params, 1, CK_DES_CBC_ENCRYPT_DATA_PARAMS);
-			SAVEFREEPV(params);
-			result.pParameter = params;
-			result.ulParameterLen = sizeof *params;
+			INIT_PARAMS(CK_DES_CBC_ENCRYPT_DATA_PARAMS);
 
 			params->pData = SvPVbyte(array[0], params->length);
 			STRLEN length;
@@ -973,11 +941,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 			if (array_len < 2)
 				Perl_croak(aTHX_ "Insufficient parameters for derivation");
 
-			CK_RSA_PKCS_OAEP_PARAMS* params;
-			Newxz(params, 1, CK_RSA_PKCS_OAEP_PARAMS);
-			SAVEFREEPV(params);
-			result.pParameter = params;
-			result.ulParameterLen = sizeof *params;
+			INIT_PARAMS(CK_RSA_PKCS_OAEP_PARAMS);
 
 			params->hashAlg = get_mechanism_type(array[0]);
 			params->mgf = map_get(generators, array[0], "generator");
@@ -991,11 +955,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 
 		case CKM_EDDSA: {
 			if (array_len) {
-				CK_EDDSA_PARAMS* params;
-				Newxz(params, 1, CK_EDDSA_PARAMS);
-				SAVEFREEPV(params);
-				result.pParameter = params;
-				result.ulParameterLen = sizeof *params;
+				INIT_PARAMS(CK_EDDSA_PARAMS);
 
 				params->phFlag = SvTRUE(array[0]);
 
