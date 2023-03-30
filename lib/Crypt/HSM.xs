@@ -1505,6 +1505,10 @@ struct Session {
 };
 typedef struct Session* Crypt__HSM__Session;
 
+#ifndef MIN
+#	define MIN(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
 #define CLONE_SKIP() 1
 
 MODULE = Crypt::HSM	 PACKAGE = Crypt::HSM		PREFIX = provider_
