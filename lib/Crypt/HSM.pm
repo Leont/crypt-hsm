@@ -8,7 +8,7 @@ XSLoader::load(__PACKAGE__, __PACKAGE__->VERSION);
 
 1;
 
-#ABSTRACT: A PKCS11 implementation
+#ABSTRACT: A PKCS11 interface for Perl
 
 =head1 SYNOPSIS
 
