@@ -1,6 +1,8 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+
+0.003     2023-03-30 16:55:10+02:00 Europe/Amsterdam
           - Add refcounting to provider
           - Store provider object in magic for thread safety.
 
