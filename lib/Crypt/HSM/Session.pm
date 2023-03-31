@@ -46,7 +46,7 @@ This is an identifier that refers to resource inside the HSM, it has no meaning 
 
 This is a mechanism for a cryptographic operation, e.g. C<'aes-gcm'>, C<'sha256-rsa-pkcs'> or C<'sha512-hmac'>. The list of supported mechanisms can be retrieved using the C<mechanisms> method on the C<Crypt::HSM> object.
 
-Cryptographic methods taking taking an argument will also take zero or more mechanism specific arguments after their generic arguments, for example an IV for a symmetric cipher.
+Cryptographic methods taking taking an argument will also take zero or more mechanism specific arguments after their generic arguments, for example an IV or nonce for a symmetric cipher that uses such, or a public key for a Diffie-Hellman derivation.
 
 =item attributes
 
