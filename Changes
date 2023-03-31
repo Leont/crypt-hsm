@@ -1,6 +1,8 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+
+0.004     2023-03-31 17:38:21+02:00 Europe/Amsterdam
           - Fix various compilation issues
 
 0.003     2023-03-30 16:55:10+02:00 Europe/Amsterdam
