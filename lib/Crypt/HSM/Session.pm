@@ -30,7 +30,7 @@ This represents a session with a PKCS module such as an HSM. It does all
 
 =head2 Constants
 
-This module uses hundreds of constants from the PKCS11 standard as short stings. They're all lowercased, without prefix and with hyphens instead of underscores. So C<CKM_SHA256_RSA_PKCS> becomes C<'sha256-rsa-pkcs'>.
+This module uses hundreds of constants from the PKCS11 standard as short stings. They're all lowercased, without prefix and with hyphens instead of underscores. So C<CKM_SHA256_RSA_PKCS> becomes C<'sha256-rsa-pkcs'>. In KDF names, the <-kdf> part is eliminated.
 
 =head2 Types
 
