@@ -5,7 +5,7 @@ use warnings;
 
 use Crypt::HSM;
 
-my $path = $ENV{HSM_PROVIDER} // '/usr/lib/softhsm/libsofthsm2.so';
+my $path = $ENV{HSM_PROVIDER} || '/usr/lib/softhsm/libsofthsm2.so';
 my $pin = $ENV{HSM_PIN};
 
 plan skip_all => 'No softhsm detected' unless defined $pin && -e $path;
