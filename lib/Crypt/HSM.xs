@@ -864,8 +864,9 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 
 			INIT_PARAMS(CK_ECDH1_DERIVE_PARAMS);
 
-			params->kdf = map_get(kdfs, array[0], "kdf");
-			params->pPublicData = SvPVbyte(array[1], params->ulPublicDataLen);
+			params->pPublicData = SvPVbyte(array[0], params->ulPublicDataLen);
+
+			params->kdf = array_len > 1 ? map_get(kdfs, array[1], "kdf") : CKD_NULL;
 
 			if (array_len > 2)
 				params->pSharedData = SvPVbyte(array[2], params->ulSharedDataLen);
