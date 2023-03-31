@@ -1,6 +1,7 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+          - Fix various compilation issues
 
 0.003     2023-03-30 16:55:10+02:00 Europe/Amsterdam
           - Add refcounting to provider
