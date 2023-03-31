@@ -928,7 +928,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 			if (array_len < 2)
 				Perl_croak(aTHX_ "Insufficient parameters for derivation");
 
-			INIT_PARAMS(CK_DES_CBC_ENCRYPT_DATA_PARAMS);
+			INIT_PARAMS(CK_AES_CBC_ENCRYPT_DATA_PARAMS);
 
 			params->pData = SvPVbyte(array[0], params->length);
 			STRLEN length;
