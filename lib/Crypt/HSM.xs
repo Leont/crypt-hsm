@@ -1501,10 +1501,24 @@ static int provider_free(pTHX_ SV* sv, MAGIC* magic) {
 const static MGVTBL Crypt__HSM_magic = { NULL, NULL, NULL, NULL, provider_free, NULL, provider_dup, NULL };
 
 struct Session {
+	Refcount refcount;
 	CK_SESSION_HANDLE handle;
 	struct Provider* provider;
 };
 typedef struct Session* Crypt__HSM__Session;
+
+static void session_refcount_increment(struct Session* session) {
+	refcount_inc(&session->refcount);
+}
+
+static void S_session_refcount_decrement(pTHX_ struct Session* session) {
+	if (refcount_dec(&session->refcount) == 1) {
+		session->provider->funcs->C_CloseSession(session->handle);
+		provider_refcount_decrement(session->provider);
+		Safefree(session);
+	}
+}
+#define session_refcount_decrement(session) S_session_refcount_decrement(aTHX_ session)
 
 #ifndef MIN
 #	define MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -1632,6 +1646,7 @@ Crypt::HSM::Session open_session(Crypt::HSM self, CK_SLOT_ID slot, Session_flags
 CODE:
 	CK_NOTIFY Notify = NULL;
 	Newxz(RETVAL, 1, struct Session);
+	refcount_init(&RETVAL->refcount, 1);
 
 	RETVAL->provider = self;
 	provider_refcount_increment(self);
@@ -1706,9 +1721,7 @@ MODULE = Crypt::HSM  PACKAGE = Crypt::HSM::Session PREFIX = session_
 
 void DESTROY(Crypt::HSM::Session self)
 CODE:
-	self->provider->funcs->C_CloseSession(self->handle);
-	provider_refcount_decrement(self->provider);
-	Safefree(self);
+	session_refcount_decrement(self);
 
 HV* info(Crypt::HSM::Session self)
 CODE:
