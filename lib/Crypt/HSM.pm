@@ -58,7 +58,7 @@ This array lists properties of the mechanism. It may contain values like C<'encr
 
 =method open_session($slot, $flags = [])
 
-This opens a session to C<$slot>. C<$flag> is an optional array that may currenlt contain the value C<'rw-session'> to enable writing to the token.
+This opens a session to C<$slot>. C<$flag> is an optional array that may currenlt contain the value C<'rw-session'> to enable writing to the token. This returns a Crypt::HSM::Session object.
 
 =method close_all_sessions($slot)
 
