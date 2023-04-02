@@ -769,6 +769,10 @@ static const map kdfs = {
 		params->sLen = SvUV((array)[1]);\
 }
 
+#ifndef MIN
+#	define MIN(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
 static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** array, size_t array_len) {
 	CK_MECHANISM result = { type, NULL, 0 };
 
@@ -1521,10 +1525,6 @@ static void S_session_refcount_decrement(pTHX_ struct Session* session) {
 	}
 }
 #define session_refcount_decrement(session) S_session_refcount_decrement(aTHX_ session)
-
-#ifndef MIN
-#	define MIN(a, b) ((a) < (b) ? (a) : (b))
-#endif
 
 #define CLONE_SKIP() 1
 
