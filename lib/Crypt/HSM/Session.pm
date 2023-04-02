@@ -160,6 +160,26 @@ Log the current session out.
 
 This returns the size of C<$object>
 
+=method open_decrypt($mechanism, $key, ...)
+
+Start a decryption with C<$mechanism> and C<$key>. This returns a L<Crypt::HSM::Decrypt|Crypt::HSM::Decrypt> object.
+
+=method open_digest($mechanism, ...)
+
+Start a digest with C<$mechanism>. This returns a L<Crypt::HSM::Digest|Crypt::HSM::Digest> object.
+
+=method open_encrypt($mechanism, $key, ...)
+
+Start an encryption with C<$mechanism> and C<$key>. This returns a L<Crypt::HSM::Encrypt|Crypt::HSM::Encrypt> object.
+
+=method open_sign($mechanism, $key, ...)
+
+Start an signing with C<$mechanism> and C<$key>. This returns a L<Crypt::HSM::Sign|Crypt::HSM::Sign> object.
+
+=method open_verify($mechanism, $key, ...)
+
+Start an verification with C<$mechanism> and C<$key>. This returns a L<Crypt::HSM::Verify|Crypt::HSM::Verify> object.
+
 =method seed_random($seed)
 
 Mix additional seed material into the token’s random number generator
