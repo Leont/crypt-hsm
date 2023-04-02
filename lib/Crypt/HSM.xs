@@ -1994,7 +1994,12 @@ CODE:
 
 	result = self->provider->funcs->C_Verify(self->handle, dataPV, dataLen, signaturePV, signatureLen);
 
-	RETVAL = result == CKR_OK;
+	if (result == CKR_OK)
+		RETVAL = TRUE;
+	else if (result == CKR_SIGNATURE_INVALID)
+		RETVAL = FALSE;
+	else
+		croak_with("Couldn't verify", result);
 OUTPUT:
 	RETVAL
 
