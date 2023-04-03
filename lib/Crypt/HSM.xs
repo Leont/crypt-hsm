@@ -1485,6 +1485,7 @@ static void S_provider_refcount_decrement(pTHX_ struct Provider* provider) {
 	if (refcount_dec(&provider->refcount) == 1) {
 		provider->funcs->C_Finalize(NULL);
 		dlclose(provider->handle);
+		refcount_destroy(&provider->refcount);
 		Safefree(provider);
 	}
 }
@@ -1515,6 +1516,7 @@ static void S_session_refcount_decrement(pTHX_ struct Session* session) {
 	if (refcount_dec(&session->refcount) == 1) {
 		session->provider->funcs->C_CloseSession(session->handle);
 		provider_refcount_decrement(session->provider);
+		refcount_destroy(&session->refcount);
 		Safefree(session);
 	}
 }
