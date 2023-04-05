@@ -1491,7 +1491,7 @@ static void S_provider_refcount_decrement(pTHX_ struct Provider* provider) {
 		provider->funcs->C_Finalize(NULL);
 		dlclose(provider->handle);
 		refcount_destroy(&provider->refcount);
-		Safefree(provider);
+		PerlMemShared_free(provider);
 	}
 }
 #define provider_refcount_decrement(provider) S_provider_refcount_decrement(aTHX_ provider)
@@ -1535,7 +1535,7 @@ PROTOTYPES: DISABLED
 
 Crypt::HSM load(SV* class, const char* path)
 CODE:
-	Newxz(RETVAL, 1, struct Provider);
+	RETVAL = (struct Provider*) PerlMemShared_calloc(1, sizeof(struct Provider));
 	refcount_init(&RETVAL->refcount, 1);
 
 	RETVAL->handle = dlopen(path, RTLD_LAZY | RTLD_LOCAL);
