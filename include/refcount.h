@@ -32,10 +32,8 @@ typedef volatile size_t Refcount;
 #    if __has_feature(cxx_atomic)
 #      define HAS_ATOMICS
 #    endif
-#  elif defined(__GNUC__)
-#    if __GNUC_PREREQ(4,9)
-#      define HAS_ATOMICS
-#    endif
+#  elif __GNUC__ > 4
+#    define HAS_ATOMICS
 #  endif
 
 # ifdef HAS_ATOMICS
