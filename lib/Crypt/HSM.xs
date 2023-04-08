@@ -1482,9 +1482,10 @@ struct Provider {
 };
 typedef struct Provider* Crypt__HSM;
 
-static void provider_refcount_increment(struct Provider* provider) {
+static void S_provider_refcount_increment(pTHX_ struct Provider* provider) {
 	refcount_inc(&provider->refcount);
 }
+#define provider_refcount_increment(provider) S_provider_refcount_increment(aTHX_ provider)
 
 static void S_provider_refcount_decrement(pTHX_ struct Provider* provider) {
 	if (refcount_dec(&provider->refcount) == 1) {
@@ -1513,9 +1514,10 @@ struct Session {
 };
 typedef struct Session* Crypt__HSM__Session;
 
-static void session_refcount_increment(struct Session* session) {
+static void S_session_refcount_increment(pTHX_ struct Session* session) {
 	refcount_inc(&session->refcount);
 }
+#define session_refcount_increment(session) S_session_refcount_increment(aTHX_ session)
 
 static void S_session_refcount_decrement(pTHX_ struct Session* session) {
 	if (refcount_dec(&session->refcount) == 1) {
