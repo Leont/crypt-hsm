@@ -774,6 +774,14 @@ static const map kdfs = {
 #	define MIN(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
+static CK_BYTE* S_get_buffer(pTHX_ SV* buffer, CK_ULONG* length) {
+	STRLEN len;
+	char* temp = SvPVbyte(buffer, len);
+	*length = len;
+	return (CK_BYTE*)temp;
+}
+#define get_buffer(buffer, length) S_get_buffer(aTHX_ buffer, length)
+
 static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** array, size_t array_len) {
 	CK_MECHANISM result = { type, NULL, 0 };
 
@@ -791,7 +799,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 		case CKM_AES_CBC_PAD:
 			if (array_len < 1)
 				Perl_croak(aTHX_ "No IV given for cipher needing it");
-			result.pParameter = SvPVbyte(array[0], result.ulParameterLen);
+			result.pParameter = get_buffer(array[0], &result.ulParameterLen);
 			break;
 
 		case CKM_AES_CTR: {
@@ -815,11 +823,11 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 
 			INIT_PARAMS(CK_GCM_PARAMS);
 
-			params->pIv = SvPVbyte(array[0], params->ulIvLen);
+			params->pIv = get_buffer(array[0], &params->ulIvLen);
 			params->ulIvBits = 8 * params->ulIvLen;
 
 			if (array_len >= 2 && SvOK(array[1]))
-				params->pAAD = SvPVbyte(array[1], params->ulAADLen);
+				params->pAAD = get_buffer(array[1], &params->ulAADLen);
 
 			params->ulTagBits = array_len >= 3 ? SvUV(array[2]) : 128;
 
@@ -833,10 +841,10 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 
 			INIT_PARAMS(CK_SALSA20_CHACHA20_POLY1305_PARAMS);
 
-			params->pNonce = SvPVbyte(array[0], params->ulNonceLen);
+			params->pNonce = get_buffer(array[0], &params->ulNonceLen);
 
 			if (array_len >= 2 && SvOK(array[1]))
-				params->pAAD = SvPVbyte(array[1], params->ulAADLen);
+				params->pAAD = get_buffer(array[1], &params->ulAADLen);
 
 			break;
 		}
@@ -869,12 +877,12 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 
 			INIT_PARAMS(CK_ECDH1_DERIVE_PARAMS);
 
-			params->pPublicData = SvPVbyte(array[0], params->ulPublicDataLen);
+			params->pPublicData = get_buffer(array[0], &params->ulPublicDataLen);
 
 			params->kdf = array_len > 1 ? map_get(kdfs, array[1], "kdf") : CKD_NULL;
 
 			if (array_len > 2)
-				params->pSharedData = SvPVbyte(array[2], params->ulSharedDataLen);
+				params->pSharedData = get_buffer(array[2], &params->ulSharedDataLen);
 
 			break;
 		}
@@ -883,7 +891,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 			if (array_len < 1)
 				Perl_croak(aTHX_ "Insufficient parameters for derivation");
 
-			result.pParameter = SvPVbyte(array[0], result.ulParameterLen);
+			result.pParameter = get_buffer(array[0], &result.ulParameterLen);
 
 			break;
 		}
@@ -898,7 +906,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 
 			INIT_PARAMS(CK_KEY_DERIVATION_STRING_DATA);
 
-			params->pData = SvPVbyte(array[0], params->ulLen);
+			params->pData = get_buffer(array[0], &params->ulLen);
 
 			break;
 		}
@@ -921,7 +929,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 
 			INIT_PARAMS(CK_DES_CBC_ENCRYPT_DATA_PARAMS);
 
-			params->pData = SvPVbyte(array[0], params->length);
+			params->pData = get_buffer(array[0], &params->length);
 			STRLEN length;
 			const char* iv = SvPVbyte(array[1], length);
 			memcpy(params->iv, iv, MIN(sizeof params->iv, length));
@@ -935,7 +943,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 
 			INIT_PARAMS(CK_AES_CBC_ENCRYPT_DATA_PARAMS);
 
-			params->pData = SvPVbyte(array[0], params->length);
+			params->pData = get_buffer(array[0], &params->length);
 			STRLEN length;
 			const char* iv = SvPVbyte(array[1], length);
 			memcpy(params->iv, iv, MIN(sizeof params->iv, length));
@@ -954,7 +962,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 			params->source = SvTRUE(array[1]);
 
 			if (array_len > 2)
-				params->pSourceData = SvPVbyte(array[2], params->ulSourceDataLen);
+				params->pSourceData = get_buffer(array[2], &params->ulSourceDataLen);
 
 			break;
 		}
@@ -966,7 +974,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 				params->phFlag = SvTRUE(array[0]);
 
 				if (array_len > 1)
-					params->pContextData = SvPVbyte(array[0], params->ulContextDataLen);
+					params->pContextData = get_buffer(array[0], &params->ulContextDataLen);
 			}
 		}
 	}
@@ -1305,9 +1313,7 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 					}
 					// FALLTHROUGH
 				case ByteAttr: {
-					CK_ULONG len;
-					current->pValue = (void*)SvPVbyte(value, len);
-					current->ulValueLen = len;
+					current->pValue = get_buffer(value, &current->ulValueLen);
 					break;
 				}
 				case ClassAttr: {
@@ -1920,16 +1926,15 @@ CODE:
 	if (result != CKR_OK)
 		croak_with("Couldn't initialize encryption", result);
 
-	STRLEN dataLen;
-	CK_ULONG encryptedDataLen;
-	const char* dataPV = SvPVbyte(data, dataLen);
-	result = self->provider->funcs->C_Encrypt(self->handle, (CK_BYTE_PTR)dataPV, dataLen, NULL, &encryptedDataLen);
+	CK_ULONG dataLen, encryptedDataLen;
+	CK_BYTE* dataPV = get_buffer(data, &dataLen);
+	result = self->provider->funcs->C_Encrypt(self->handle, dataPV, dataLen, NULL, &encryptedDataLen);
 	if (result != CKR_OK)
 		croak_with("Couldn't compute encrypted length", result);
 
 	RETVAL = newSV(encryptedDataLen);
 	SvPOK_only(RETVAL);
-	result = self->provider->funcs->C_Encrypt(self->handle, (CK_BYTE_PTR)dataPV, dataLen, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &encryptedDataLen);
+	result = self->provider->funcs->C_Encrypt(self->handle, dataPV, dataLen, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &encryptedDataLen);
 	SvCUR(RETVAL) = encryptedDataLen;
 	if (result != CKR_OK)
 		croak_with("Couldn't encrypt", result);
@@ -1944,16 +1949,15 @@ CODE:
 	if (result != CKR_OK)
 		croak_with("Couldn't initialize decryption", result);
 
-	STRLEN dataLen;
-	CK_ULONG decryptedDataLen;
-	const char* dataPV = SvPVbyte(data, dataLen);
-	result = self->provider->funcs->C_Decrypt(self->handle, (CK_BYTE_PTR)dataPV, dataLen, NULL, &decryptedDataLen);
+	CK_ULONG dataLen, decryptedDataLen;
+	CK_BYTE* dataPV = get_buffer(data, &dataLen);
+	result = self->provider->funcs->C_Decrypt(self->handle, dataPV, dataLen, NULL, &decryptedDataLen);
 	if (result != CKR_OK)
 		croak_with("Couldn't compute decrypted length", result);
 
 	RETVAL = newSV(decryptedDataLen);
 	SvPOK_only(RETVAL);
-	result = self->provider->funcs->C_Decrypt(self->handle, (CK_BYTE_PTR)dataPV, dataLen, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &decryptedDataLen);
+	result = self->provider->funcs->C_Decrypt(self->handle, dataPV, dataLen, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &decryptedDataLen);
 	SvCUR(RETVAL) = decryptedDataLen;
 	if (result != CKR_OK)
 		croak_with("Couldn't decrypt", result);
@@ -1968,16 +1972,15 @@ CODE:
 	if (result != CKR_OK)
 		croak_with("Couldn't initialize signing", result);
 
-	STRLEN dataLen;
-	CK_ULONG signedDataLen;
-	const char* dataPV = SvPVbyte(data, dataLen);
-	result = self->provider->funcs->C_Sign(self->handle, (CK_BYTE_PTR)dataPV, dataLen, NULL, &signedDataLen);
+	CK_ULONG dataLen, signedDataLen;
+	CK_BYTE* dataPV = get_buffer(data, &dataLen);
+	result = self->provider->funcs->C_Sign(self->handle, dataPV, dataLen, NULL, &signedDataLen);
 	if (result != CKR_OK)
 		croak_with("Couldn't compute signed length", result);
 
 	RETVAL = newSV(signedDataLen);
 	SvPOK_only(RETVAL);
-	result = self->provider->funcs->C_Sign(self->handle, (CK_BYTE_PTR)dataPV, dataLen, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &signedDataLen);
+	result = self->provider->funcs->C_Sign(self->handle, dataPV, dataLen, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &signedDataLen);
 	SvCUR(RETVAL) = signedDataLen;
 	if (result != CKR_OK)
 		croak_with("Couldn't sign", result);
@@ -1992,10 +1995,9 @@ CODE:
 	if (result != CKR_OK)
 		croak_with("Couldn't initialize verifying", result);
 
-	STRLEN dataLen;
-	char* dataPV = SvPVbyte(data, dataLen);
-	STRLEN signatureLen;
-	char* signaturePV = SvPVbyte(signature, signatureLen);
+	CK_ULONG dataLen, signatureLen;
+	CK_BYTE* dataPV = get_buffer(data, &dataLen);
+	CK_BYTE* signaturePV = get_buffer(signature, &signatureLen);
 
 	result = self->provider->funcs->C_Verify(self->handle, dataPV, dataLen, signaturePV, signatureLen);
 
@@ -2016,16 +2018,15 @@ CODE:
 	if (result != CKR_OK)
 		croak_with("Couldn't initialize digestion", result);
 
-	STRLEN dataLen;
-	CK_ULONG digestedDataLen;
-	const char* dataPV = SvPVbyte(data, dataLen);
-	result = self->provider->funcs->C_Digest(self->handle, (CK_BYTE_PTR)dataPV, dataLen, NULL, &digestedDataLen);
+	CK_ULONG dataLen, digestedDataLen;
+	CK_BYTE* dataPV = get_buffer(data, &dataLen);
+	result = self->provider->funcs->C_Digest(self->handle, dataPV, dataLen, NULL, &digestedDataLen);
 	if (result != CKR_OK)
 		croak_with("Couldn't compute digested length", result);
 
 	RETVAL = newSV(digestedDataLen);
 	SvPOK_only(RETVAL);
-	result = self->provider->funcs->C_Digest(self->handle, (CK_BYTE_PTR)dataPV, dataLen, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &digestedDataLen);
+	result = self->provider->funcs->C_Digest(self->handle, dataPV, dataLen, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &digestedDataLen);
 	SvCUR(RETVAL) = digestedDataLen;
 	if (result != CKR_OK)
 		croak_with("Couldn't digest", result);
@@ -2053,8 +2054,8 @@ OUTPUT:
 CK_OBJECT_HANDLE unwrap_key(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, CK_OBJECT_HANDLE unwrappingKey, SV* wrapped, Attributes attributes, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 5);
-	STRLEN wrappedLen;
-	char* wrappedPV = SvPVbyte(wrapped, wrappedLen);
+	CK_ULONG wrappedLen;
+	CK_BYTE* wrappedPV = get_buffer(wrapped, &wrappedLen);
 	CK_RV result = self->provider->funcs->C_UnwrapKey(self->handle, &mechanism, unwrappingKey, wrappedPV, wrappedLen, attributes.member, attributes.length, &RETVAL);
 	if (result != CKR_OK)
 		croak_with("Couldn't unwrap", result);
@@ -2073,8 +2074,8 @@ OUTPUT:
 
 void seed_random(Crypt::HSM::Session self, SV* seed)
 CODE:
-	STRLEN seedLen;
-	char* seedPV = SvPVbyte(seed, seedLen);
+	CK_ULONG seedLen;
+	CK_BYTE* seedPV = get_buffer(seed, &seedLen);
 	CK_RV result = self->provider->funcs->C_SeedRandom(self->handle, seedPV, seedLen);
 	if (result != CKR_OK)
 		croak_with("Couldn't seed entropy pool", result);
