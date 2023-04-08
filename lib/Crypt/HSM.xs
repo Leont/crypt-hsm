@@ -1712,14 +1712,14 @@ CODE:
 
 void init_token(Crypt::HSM self, CK_SLOT_ID slot, SV* pin, SV* label)
 CODE:
-	char label_buffer[32];
+	CK_BYTE label_buffer[32];
 	STRLEN pin_len, label_len;
 	char* pinPV = SvPVutf8(pin, pin_len);
 	char* labelPV = SvPVutf8(label, label_len);
 	memset(label_buffer, ' ', 32);
 	memcpy(label_buffer, labelPV, MIN(label_len, 32));
 
-	CK_RV result = self->funcs->C_InitToken(slot, pinPV, pin_len, label_buffer);
+	CK_RV result = self->funcs->C_InitToken(slot, (CK_BYTE*)pinPV, pin_len, label_buffer);
 	if (result != CKR_OK)
 		croak_with("Could not initialize token", result);
 
@@ -1750,7 +1750,7 @@ void login(Crypt::HSM::Session self, CK_USER_TYPE type, SV* pin)
 CODE:
 	STRLEN pin_len;
 	char* pinPV = SvPVutf8(pin, pin_len);
-	CK_RV result = self->provider->funcs->C_Login(self->handle, type, pinPV, pin_len);
+	CK_RV result = self->provider->funcs->C_Login(self->handle, type, (CK_BYTE*)pinPV, pin_len);
 	if (result != CKR_OK)
 		croak_with("Could not log in", result);
 
@@ -1767,7 +1767,7 @@ CODE:
 	STRLEN pin_len;
 	char* pinPV = SvPVutf8(pin, pin_len);
 
-	CK_RV result = self->provider->funcs->C_InitPIN(self->handle, pinPV, pin_len);
+	CK_RV result = self->provider->funcs->C_InitPIN(self->handle, (CK_BYTE*)pinPV, pin_len);
 	if (result != CKR_OK)
 		croak_with("Could not initialize pin", result);
 
@@ -1778,7 +1778,7 @@ CODE:
 	char* old_pinPV = SvPVutf8(old_pin, old_pin_len);
 	char* new_pinPV = SvPVutf8(new_pin, new_pin_len);
 
-	CK_RV result = self->provider->funcs->C_SetPIN(self->handle, old_pinPV, old_pin_len, new_pinPV, new_pin_len);
+	CK_RV result = self->provider->funcs->C_SetPIN(self->handle, (CK_BYTE*)old_pinPV, old_pin_len, (CK_BYTE*)new_pinPV, new_pin_len);
 	if (result != CKR_OK)
 		croak_with("Could not set pin", result);
 
@@ -1929,7 +1929,7 @@ CODE:
 
 	RETVAL = newSV(encryptedDataLen);
 	SvPOK_only(RETVAL);
-	result = self->provider->funcs->C_Encrypt(self->handle, (CK_BYTE_PTR)dataPV, dataLen, SvPVbyte_nolen(RETVAL), &encryptedDataLen);
+	result = self->provider->funcs->C_Encrypt(self->handle, (CK_BYTE_PTR)dataPV, dataLen, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &encryptedDataLen);
 	SvCUR(RETVAL) = encryptedDataLen;
 	if (result != CKR_OK)
 		croak_with("Couldn't encrypt", result);
@@ -1953,7 +1953,7 @@ CODE:
 
 	RETVAL = newSV(decryptedDataLen);
 	SvPOK_only(RETVAL);
-	result = self->provider->funcs->C_Decrypt(self->handle, (CK_BYTE_PTR)dataPV, dataLen, SvPVbyte_nolen(RETVAL), &decryptedDataLen);
+	result = self->provider->funcs->C_Decrypt(self->handle, (CK_BYTE_PTR)dataPV, dataLen, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &decryptedDataLen);
 	SvCUR(RETVAL) = decryptedDataLen;
 	if (result != CKR_OK)
 		croak_with("Couldn't decrypt", result);
@@ -1977,7 +1977,7 @@ CODE:
 
 	RETVAL = newSV(signedDataLen);
 	SvPOK_only(RETVAL);
-	result = self->provider->funcs->C_Sign(self->handle, (CK_BYTE_PTR)dataPV, dataLen, SvPVbyte_nolen(RETVAL), &signedDataLen);
+	result = self->provider->funcs->C_Sign(self->handle, (CK_BYTE_PTR)dataPV, dataLen, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &signedDataLen);
 	SvCUR(RETVAL) = signedDataLen;
 	if (result != CKR_OK)
 		croak_with("Couldn't sign", result);
@@ -2025,7 +2025,7 @@ CODE:
 
 	RETVAL = newSV(digestedDataLen);
 	SvPOK_only(RETVAL);
-	result = self->provider->funcs->C_Digest(self->handle, (CK_BYTE_PTR)dataPV, dataLen, SvPVbyte_nolen(RETVAL), &digestedDataLen);
+	result = self->provider->funcs->C_Digest(self->handle, (CK_BYTE_PTR)dataPV, dataLen, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &digestedDataLen);
 	SvCUR(RETVAL) = digestedDataLen;
 	if (result != CKR_OK)
 		croak_with("Couldn't digest", result);
@@ -2043,7 +2043,7 @@ CODE:
 
 	RETVAL = newSV(length);
 	SvPOK_only(RETVAL);
-	result = self->provider->funcs->C_WrapKey(self->handle, &mechanism, wrappingKey, key, SvPVbyte_nolen(RETVAL), &length);
+	result = self->provider->funcs->C_WrapKey(self->handle, &mechanism, wrappingKey, key, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &length);
 	SvCUR(RETVAL) = length;
 	if (result != CKR_OK)
 		croak_with("Couldn't wrap", result);
@@ -2085,7 +2085,7 @@ CODE:
 	RETVAL = newSV(length);
 	SvPOK_only(RETVAL);
 	SvCUR(RETVAL) = length;
-	CK_RV result = self->provider->funcs->C_GenerateRandom(self->handle, SvPVbyte_nolen(RETVAL), length);
+	CK_RV result = self->provider->funcs->C_GenerateRandom(self->handle, (CK_BYTE*)SvPVbyte_nolen(RETVAL), length);
 	if (result != CKR_OK)
 		croak_with("Couldn't generate randomness", result);
 OUTPUT:
