@@ -1499,10 +1499,12 @@ static void S_provider_refcount_decrement(pTHX_ struct Provider* provider) {
 
 static int provider_dup(pTHX_ MAGIC* magic, CLONE_PARAMS* params) {
 	provider_refcount_increment((struct Provider*)magic->mg_ptr);
+	return 0;
 }
 
 static int provider_free(pTHX_ SV* sv, MAGIC* magic) {
 	provider_refcount_decrement((struct Provider*)magic->mg_ptr);
+	return 0;
 }
 
 const static MGVTBL Crypt__HSM_magic = { NULL, NULL, NULL, NULL, provider_free, NULL, provider_dup, NULL };
