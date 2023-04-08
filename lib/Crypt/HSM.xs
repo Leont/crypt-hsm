@@ -1379,6 +1379,11 @@ static const attribute_entry* S_attribute_reverse_find(pTHX_ CK_ULONG value) {
 
 #define get_intval(pointer) (*(const CK_ULONG*)pointer)
 
+static SV* S_entry_to_sv(pTHX_ const entry* item) {
+	return item ? newSVpvn(item->key, item->length) : newSVpvs("unknown");
+}
+#define entry_to_sv(item) S_entry_to_sv(aTHX_ item)
+
 #define reverse_attribute(attr) S_reverse_attribute(aTHX_ attr)
 static SV* S_reverse_attribute(pTHX_ CK_ATTRIBUTE* attribute) {
 	if (attribute->ulValueLen == 0 || attribute->ulValueLen == CK_UNAVAILABLE_INFORMATION)
@@ -1406,43 +1411,23 @@ static SV* S_reverse_attribute(pTHX_ CK_ATTRIBUTE* attribute) {
 			return newSVpvn(pointer, length);
 		case ClassAttr: {
 			CK_ULONG integer = get_intval(pointer);
-			const entry* item = map_reverse_find(object_classes, integer);
-			if (item)
-				return newSVpvn(item->key, item->length);
-			else
-				return newSVpvs("unknown");
+			return entry_to_sv(map_reverse_find(object_classes, integer));
 		}
 		case KeyTypeAttr: {
 			CK_ULONG integer = get_intval(pointer);
-			const entry* item = map_reverse_find(key_types, integer);
-			if (item)
-				return newSVpvn(item->key, item->length);
-			else
-				return newSVpvs("unknown");
+			return entry_to_sv(map_reverse_find(key_types, integer));
 		}
 		case CertTypeAttr: {
 			CK_ULONG integer = get_intval(pointer);
-			const entry* item = map_reverse_find(certificate_types, integer);
-			if (item)
-				return newSVpvn(item->key, item->length);
-			else
-				return newSVpvs("unknown");
+			return entry_to_sv(map_reverse_find(certificate_types, integer));
 		}
 		case CertCatAttr: {
 			CK_ULONG integer = get_intval(pointer);
-			const entry* item = map_reverse_find(certificate_categories, integer);
-			if (item)
-				return newSVpvn(item->key, item->length);
-			else
-				return newSVpvs("unknown");
+			return entry_to_sv(map_reverse_find(certificate_categories, integer));
 		}
 		case HardwareTypeAttr: {
 			CK_ULONG integer = get_intval(pointer);
-			const entry* item = map_reverse_find(hardware_types, integer);
-			if (item)
-				return newSVpvn(item->key, item->length);
-			else
-				return newSVpvs("unknown");
+			return entry_to_sv(map_reverse_find(hardware_types, integer));
 		}
 		case IntArrayAttr: {
 			AV* result = newAV();
