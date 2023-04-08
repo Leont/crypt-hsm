@@ -1467,11 +1467,11 @@ static const map user_types = {
 };
 #define get_user_type(input) map_get(user_types, input, "user type")
 
-static SV* S_trimmed_value(pTHX_ const char* ptr, size_t max) {
+static SV* S_trimmed_value(pTHX_ const CK_BYTE* ptr, size_t max) {
 	ptrdiff_t last = max - 1;
 	while (last >= 0 && ptr[last] == ' ')
 		last--;
-	return newSVpvn(ptr, last + 1);
+	return newSVpvn((const char*)ptr, last + 1);
 }
 #define trimmed_value(ptr, max) S_trimmed_value(aTHX_ ptr, max)
 
@@ -1574,9 +1574,9 @@ CODE:
 
 	RETVAL = newHV();
 	hv_stores(RETVAL, "cryptoki-version", newSVpvf("%d.%d", info.cryptokiVersion.major, info.cryptokiVersion.minor));
-	hv_stores(RETVAL, "manufacturer-id", trimmed_value((char*)info.manufacturerID, 32));
+	hv_stores(RETVAL, "manufacturer-id", trimmed_value(info.manufacturerID, 32));
 	hv_stores(RETVAL, "flags", newRV_noinc((SV*)newAV()));
-	hv_stores(RETVAL, "library-description", trimmed_value((char*)info.libraryDescription, 32));
+	hv_stores(RETVAL, "library-description", trimmed_value(info.libraryDescription, 32));
 	hv_stores(RETVAL, "library-version", newSVpvf("%d.%d", info.libraryVersion.major, info.libraryVersion.minor));
 OUTPUT:
 	RETVAL
@@ -1629,7 +1629,7 @@ CODE:
 
 	RETVAL = newHV();
 	hv_stores(RETVAL, "label", trimmed_value(info.label, 32));
-	hv_stores(RETVAL, "manufacturer-id", trimmed_value((char*)info.manufacturerID, 32));
+	hv_stores(RETVAL, "manufacturer-id", trimmed_value(info.manufacturerID, 32));
 	hv_stores(RETVAL, "model", trimmed_value(info.model, 16));
 	hv_stores(RETVAL, "serial-number", trimmed_value(info.serialNumber, 16));
 	hv_stores(RETVAL, "flags", newRV_noinc((SV*)reverse_flags(token_flags, info.flags)));
