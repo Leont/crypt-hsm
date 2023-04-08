@@ -1672,10 +1672,7 @@ PPCODE:
 	RETVAL = newAV();
 	for (int i = 0; i < length; ++i) {
 		const entry* item = map_reverse_find(mechanisms, types[i]);
-		if (item != NULL)
-			mXPUSHs(newSVpvn(item->key, item->length));
-		else
-			mXPUSHs(&PL_sv_undef);
+		mXPUSHs(item ? newSVpvn(item->key, item->length) : &PL_sv_undef);
 	}
 
 
