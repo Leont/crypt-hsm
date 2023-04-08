@@ -1097,7 +1097,7 @@ typedef struct Attributes {
 
 enum Attribute_type { IntAttr, BoolAttr, StrAttr, ByteAttr, ClassAttr, BigintAttr, KeyTypeAttr, CertTypeAttr, CertCatAttr, HardwareTypeAttr, IntArrayAttr, AttrAttr };
 
-typedef struct { const char* key; size_t length; UV value; enum Attribute_type type; } attribute_entry;
+typedef struct { const char* key; size_t length; CK_ULONG value; enum Attribute_type type; } attribute_entry;
 typedef attribute_entry attribute_map[];
 
 static const attribute_map attributes = {
@@ -1367,7 +1367,7 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 }
 
 
-static const attribute_entry* S_attribute_reverse_find(pTHX_ UV value) {
+static const attribute_entry* S_attribute_reverse_find(pTHX_ CK_ULONG value) {
 	int i;
 	for (i = 0; i < sizeof attributes / sizeof *attributes; ++i) {
 		if (attributes[i].value == value)
