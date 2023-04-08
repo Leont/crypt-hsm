@@ -1844,7 +1844,6 @@ CODE:
 		croak_with("Could not get attributes", result);
 
 	for (int i = 0; i < attributes.length; ++i) {
-		STRLEN name_length;
 		SV* key = *av_fetch(attributes_av, i, FALSE);
 
 		if (attributes.member[i].ulValueLen != CK_UNAVAILABLE_INFORMATION) {
@@ -1859,7 +1858,6 @@ CODE:
 
 	RETVAL = newHV();
 	for (int i = 0; i < attributes.length; ++i) {
-		STRLEN name_length;
 		SV* key = *av_fetch(attributes_av, i, FALSE);
 		SV* value = reverse_attribute(&attributes.member[i]);
 		hv_store_ent(RETVAL, key, value, 0);
