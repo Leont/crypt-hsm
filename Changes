@@ -1,9 +1,10 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+          - Further improve refcounting on compilers without atomics
 
 0.005     2023-04-05 23:20:57+02:00 Europe/Amsterdam
-          - Make refcounting implementation compile without atomics
+          - Make refcounting implementation compilers without atomics
           - Make verify throw exceptions on error
           - Move MIN definition up to fix compilation issues
           - Explicitly ask ppport.h for mg_findext
