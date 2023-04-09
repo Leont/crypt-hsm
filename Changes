@@ -1,6 +1,8 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+
+0.006     2023-04-09 12:16:50+02:00 Europe/Amsterdam
           - Further improve refcounting on compilers without atomics
           - Stricten up pointer usage
 
