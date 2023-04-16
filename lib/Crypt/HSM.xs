@@ -1477,8 +1477,9 @@ struct Provider {
 };
 typedef struct Provider* Crypt__HSM;
 
-static void S_provider_refcount_increment(pTHX_ struct Provider* provider) {
+static struct Provider* S_provider_refcount_increment(pTHX_ struct Provider* provider) {
 	refcount_inc(&provider->refcount);
+	return provider;
 }
 #define provider_refcount_increment(provider) S_provider_refcount_increment(aTHX_ provider)
 
@@ -1511,8 +1512,9 @@ struct Session {
 };
 typedef struct Session* Crypt__HSM__Session;
 
-static void S_session_refcount_increment(pTHX_ struct Session* session) {
+static struct Session* S_session_refcount_increment(pTHX_ struct Session* session) {
 	refcount_inc(&session->refcount);
+	return session;
 }
 #define session_refcount_increment(session) S_session_refcount_increment(aTHX_ session)
 
@@ -1651,8 +1653,7 @@ CODE:
 	Newxz(RETVAL, 1, struct Session);
 	refcount_init(&RETVAL->refcount, 1);
 
-	RETVAL->provider = self;
-	provider_refcount_increment(self);
+	RETVAL->provider = provider_refcount_increment(self);
 
 	CK_RV result = self->funcs->C_OpenSession(slot, flags | CKF_SERIAL_SESSION, NULL, Notify, &RETVAL->handle);
 	if (result != CKR_OK)
