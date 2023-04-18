@@ -768,7 +768,7 @@ static const map kdfs = {
 	params->hashAlg = hash;\
 	params->mgf = generator;\
 	if (array_len >= 1)\
-		params->sLen = SvUV((array)[1]);\
+		params->sLen = SvUV((array)[0]);\
 }
 
 #ifndef MIN
