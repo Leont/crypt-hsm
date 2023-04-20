@@ -1,6 +1,7 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+          - Add provider and slot methods to Session
           - Rename sha-1 keys to sha1
 
 0.008     2023-04-20 17:13:35+02:00 Europe/Amsterdam

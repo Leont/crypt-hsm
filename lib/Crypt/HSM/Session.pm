@@ -180,6 +180,10 @@ Start an signing with C<$mechanism> and C<$key>. This returns a L<Crypt::HSM::Si
 
 Start an verification with C<$mechanism> and C<$key>. This returns a L<Crypt::HSM::Verify|Crypt::HSM::Verify> object.
 
+=method provider()
+
+Returns the provider object for this session.
+
 =method seed_random($seed)
 
 Mix additional seed material into the token’s random number generator
@@ -195,6 +199,10 @@ This changes the PIN from C<$old_pin> to C<$new_pin>.
 =method sign($mechanism, $key, $input, ...)
 
 This creates a signature over C<$input> using C<$mechanism> and C<$key>.
+
+=method slot()
+
+Returns the slot identifier used for this session.
 
 =method unwrap_key($mechanism, $unwrap_key, $wrapped_key, $attributes, ...)
 

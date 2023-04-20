@@ -1509,6 +1509,7 @@ static const MGVTBL Crypt__HSM_magic = { NULL, NULL, NULL, NULL, provider_free, 
 
 struct Session {
 	Refcount refcount;
+	CK_SLOT_ID slot;
 	CK_SESSION_HANDLE handle;
 	struct Provider* provider;
 };
@@ -1677,7 +1678,7 @@ CODE:
 	CK_NOTIFY Notify = NULL;
 	Newxz(RETVAL, 1, struct Session);
 	refcount_init(&RETVAL->refcount, 1);
-
+	RETVAL->slot = slot;
 	RETVAL->provider = provider_refcount_increment(self);
 
 	CK_RV result = self->funcs->C_OpenSession(slot, flags | CKF_SERIAL_SESSION, NULL, Notify, &RETVAL->handle);
@@ -1761,6 +1762,20 @@ CODE:
 	hv_stores(RETVAL, "state", newRV_noinc((SV*)reverse_flags(state_flags, info.state)));
 	hv_stores(RETVAL, "flags", newRV_noinc((SV*)reverse_flags(session_flags, info.flags)));
 	hv_stores(RETVAL, "device-error", newSVuv(info.ulDeviceError));
+OUTPUT:
+	RETVAL
+
+
+Crypt::HSM provider(Crypt::HSM::Session self)
+CODE:
+	RETVAL = provider_refcount_increment(self->provider);
+OUTPUT:
+	RETVAL
+
+
+CK_SLOT_ID slot(Crypt::HSM::Session self)
+CODE:
+	RETVAL = self->slot;
 OUTPUT:
 	RETVAL
 
