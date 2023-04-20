@@ -1293,7 +1293,7 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 					break;
 				}
 				case StrAttr: {
-					CK_ULONG len;
+					STRLEN len;
 					current->pValue = (void*)SvPVutf8(value, len);
 					current->ulValueLen = len;
 					break;
