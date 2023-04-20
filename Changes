@@ -1,6 +1,7 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+          - Deal with compilers insisting on naming unused arguments
 
 0.007     2023-04-19 16:32:09+02:00 Europe/Amsterdam
           - Add streaming interfaces
