@@ -1,6 +1,7 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+          - Add Slot class
           - Add provider and slot methods to Session
           - Rename sha-1 keys to sha1
 

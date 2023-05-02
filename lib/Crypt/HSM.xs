@@ -1507,6 +1507,23 @@ static int provider_free(pTHX_ SV* sv, MAGIC* magic) {
 
 static const MGVTBL Crypt__HSM_magic = { NULL, NULL, NULL, NULL, provider_free, NULL, provider_dup, NULL };
 
+struct Slot {
+	struct Provider* provider;
+	CK_SLOT_ID slot;
+};
+typedef struct Slot* Crypt__HSM__Slot;
+
+static SV* S_new_slot(pTHX_ struct Provider* provider, CK_SLOT_ID slot) {
+	struct Slot* entry;
+	Newxz(entry, 1, struct Slot);
+	entry->slot = slot;
+	entry->provider = provider_refcount_increment(provider);
+	SV* object = newSV(0);
+	sv_setref_pv(object, "Crypt::HSM::Slot", (void*)entry);
+	return object;
+}
+#define new_slot(provider, slot) S_new_slot(aTHX_ provider, slot)
+
 struct Session {
 	Refcount refcount;
 	CK_SLOT_ID slot;
@@ -1625,13 +1642,31 @@ PPCODE:
 		croak_with("Couldn't get slots", result);
 
 	for(unsigned int i = 0; i < count; i++)
-		mPUSHu(slotList[i]);
+		mPUSHs(new_slot(self, slotList[i]));
 
 
-HV* slot_info(Crypt::HSM self, CK_SLOT_ID slot_id)
+SV* slot(Crypt::HSM self, CK_SLOT_ID slot)
+CODE:
+	RETVAL = new_slot(self, slot);
+OUTPUT:
+	RETVAL
+
+MODULE = Crypt::HSM	 PACKAGE = Crypt::HSM::Slot
+
+void DESTROY(Crypt::HSM::Slot self)
+CODE:
+	provider_refcount_decrement(self->provider);
+
+CK_SLOT_ID id(Crypt::HSM::Slot self)
+CODE:
+	RETVAL = self->slot;
+OUTPUT:
+	RETVAL
+
+HV* info(Crypt::HSM::Slot self)
 CODE:
 	CK_SLOT_INFO info;
-	CK_RV result = self->funcs->C_GetSlotInfo(slot_id, &info);
+	CK_RV result = self->provider->funcs->C_GetSlotInfo(self->slot, &info);
 	if (result != CKR_OK)
 		croak_with("Couldn't get slot info", result);
 
@@ -1644,10 +1679,10 @@ CODE:
 OUTPUT:
 	RETVAL
 
-HV* token_info(Crypt::HSM self, CK_SLOT_ID slotID)
+HV* token_info(Crypt::HSM::Slot self)
 CODE:
 	CK_TOKEN_INFO info;
-	CK_RV result = self->funcs->C_GetTokenInfo(slotID, &info);
+	CK_RV result = self->provider->funcs->C_GetTokenInfo(self->slot, &info);
 	if (result != CKR_OK)
 		croak_with("Couldn't get token info", result);
 
@@ -1673,31 +1708,31 @@ CODE:
 OUTPUT:
 	RETVAL
 
-Crypt::HSM::Session open_session(Crypt::HSM self, CK_SLOT_ID slot, Session_flags flags = 0)
+Crypt::HSM::Session open_session(Crypt::HSM::Slot self, Session_flags flags = 0)
 CODE:
 	CK_NOTIFY Notify = NULL;
 	Newxz(RETVAL, 1, struct Session);
 	refcount_init(&RETVAL->refcount, 1);
-	RETVAL->slot = slot;
-	RETVAL->provider = provider_refcount_increment(self);
+	RETVAL->slot = self->slot;
+	RETVAL->provider = provider_refcount_increment(self->provider);
 
-	CK_RV result = self->funcs->C_OpenSession(slot, flags | CKF_SERIAL_SESSION, NULL, Notify, &RETVAL->handle);
+	CK_RV result = self->provider->funcs->C_OpenSession(self->slot, flags | CKF_SERIAL_SESSION, NULL, Notify, &RETVAL->handle);
 	if (result != CKR_OK)
 		croak_with("Could not open session", result);
 OUTPUT:
 	RETVAL
 
-void mechanisms(Crypt::HSM self, CK_SLOT_ID slot)
+void mechanisms(Crypt::HSM::Slot self)
 PPCODE:
 	CK_MECHANISM_TYPE* types;
 	CK_ULONG length, i;
-	CK_RV result = self->funcs->C_GetMechanismList(slot, NULL, &length);
+	CK_RV result = self->provider->funcs->C_GetMechanismList(self->slot, NULL, &length);
 	if (result != CKR_OK)
 		croak_with("Couldn't get mechanisms length", result);
 
 	Newxz(types, length, CK_MECHANISM_TYPE);
 	SAVEFREEPV(types);
-	result = self->funcs->C_GetMechanismList(slot, types, &length);
+	result = self->provider->funcs->C_GetMechanismList(self->slot, types, &length);
 	if (result != CKR_OK)
 		croak_with("Couldn't get mechanisms", result);
 
@@ -1707,10 +1742,10 @@ PPCODE:
 	}
 
 
-HV* mechanism_info(Crypt::HSM self, CK_SLOT_ID slot, CK_MECHANISM_TYPE mechanism)
+HV* mechanism_info(Crypt::HSM::Slot self, CK_MECHANISM_TYPE mechanism)
 CODE:
 	CK_MECHANISM_INFO info;
-	CK_RV result = self->funcs->C_GetMechanismInfo(slot, mechanism, &info);
+	CK_RV result = self->provider->funcs->C_GetMechanismInfo(self->slot, mechanism, &info);
 	if (result != CKR_OK)
 		croak_with("Couldn't get mechanism info", result);
 
@@ -1722,14 +1757,14 @@ OUTPUT:
 	RETVAL
 
 
-void close_all_sessions(Crypt::HSM self, CK_SLOT_ID slot)
+void close_all_sessions(Crypt::HSM::Slot self)
 CODE:
-	CK_RV result = self->funcs->C_CloseAllSessions(slot);
+	CK_RV result = self->provider->funcs->C_CloseAllSessions(self->slot);
 	if (result != CKR_OK)
 		croak_with("Could not open session", result);
 
 
-void init_token(Crypt::HSM self, CK_SLOT_ID slot, SV* pin, SV* label)
+void init_token(Crypt::HSM::Slot self, SV* pin, SV* label)
 CODE:
 	CK_BYTE label_buffer[32];
 	STRLEN pin_len, label_len;
@@ -1738,7 +1773,7 @@ CODE:
 	memset(label_buffer, ' ', 32);
 	memcpy(label_buffer, labelPV, MIN(label_len, 32));
 
-	CK_RV result = self->funcs->C_InitToken(slot, (CK_BYTE*)pinPV, pin_len, label_buffer);
+	CK_RV result = self->provider->funcs->C_InitToken(self->slot, (CK_BYTE*)pinPV, pin_len, label_buffer);
 	if (result != CKR_OK)
 		croak_with("Could not initialize token", result);
 
