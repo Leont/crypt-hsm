@@ -26,25 +26,9 @@ This opens a session to this slot. C<$flag> is an optional array that may curren
 
 This returns all mechanisms supported by the token in the slot as L<Crypt::HSM::Mechanism|Crypt::HSM::Mechanism> objects.
 
-=method mechanism_info($mechanism)
+=method mechanism($name)
 
-This returns more information about the mechanism. This includes the following fields.
-
-=over 4
-
-=item * min-key-size
-
-The minimum key size
-
-=item * max-key-size
-
-The maximum key size
-
-=item * flags
-
-This array lists properties of the mechanism. It may contain values like C<'encrypt'>, C<'decrypt'>, C<'sign'>, C<'verify'>, C<'generate'>, C<'wrap'> and C<'unwrap'>.
-
-=back
+This returns the named mechanism as a L<Crypt::HSM::Mechanism|Crypt::HSM::Mechanism> object.
 
 =method id()
 

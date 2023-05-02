@@ -713,7 +713,8 @@ static const map mechanisms = {
 	{ STR_WITH_LEN("vendor-defined"), CKM_VENDOR_DEFINED },
 };
 
-#define get_mechanism_type(input) map_get(mechanisms, input, "mechanism")
+static CK_MECHANISM_TYPE S_get_mechanism_type(pTHX_ SV* input);
+#define get_mechanism_type(input) S_get_mechanism_type(aTHX_ input)
 
 static const map generators = {
 	{ STR_WITH_LEN("sha1"), CKG_MGF1_SHA1 },
@@ -1524,6 +1525,49 @@ static SV* S_new_slot(pTHX_ struct Provider* provider, CK_SLOT_ID slot) {
 }
 #define new_slot(provider, slot) S_new_slot(aTHX_ provider, slot)
 
+struct Mechanism {
+	struct Provider* provider;
+	CK_SLOT_ID slot;
+	CK_MECHANISM_TYPE mechanism;
+	CK_MECHANISM_INFO info;
+	bool initialized;
+};
+typedef struct Mechanism* Crypt__HSM__Mechanism;
+
+static SV* S_new_mechanism(pTHX_ struct Provider* provider, CK_SLOT_ID slot, CK_MECHANISM_TYPE mechanism) {
+	struct Mechanism* entry;
+	Newxz(entry, 1, struct Mechanism);
+	entry->mechanism = mechanism;
+	entry->slot = slot;
+	entry->provider = provider_refcount_increment(provider);
+	SV* object = newSV(0);
+	sv_setref_pv(object, "Crypt::HSM::Mechanism", (void*)entry);
+	return object;
+}
+#define new_mechanism(provider, slot, mechanism) S_new_mechanism(aTHX_ provider, slot, mechanism)
+
+static CK_MECHANISM_TYPE S_get_mechanism_type(pTHX_ SV* input) {
+	if (SvROK(input) && sv_derived_from(input, "Crypt::HSM::Mechanism")) {
+		IV tmp = SvIV(SvRV(input));
+		struct Mechanism* mech = INT2PTR(struct Mechanism*, tmp);
+		return mech->mechanism;
+	} else {
+		return map_get(mechanisms, input, "mechanism");
+	}
+}
+
+static const CK_MECHANISM_INFO* S_get_mechanism_info(pTHX_ struct Mechanism* self) {
+	CK_RV result = CKR_OK;
+	if (!self->initialized) {
+		result = self->provider->funcs->C_GetMechanismInfo(self->slot, self->mechanism, &self->info);
+		if (result != CKR_OK)
+			croak_with("Couldn't get mechanism info", result);
+		self->initialized = 1;
+	}
+	return &self->info;
+}
+#define get_mechanism_info(self) S_get_mechanism_info(aTHX_ self)
+
 struct Session {
 	Refcount refcount;
 	CK_SLOT_ID slot;
@@ -1736,26 +1780,14 @@ PPCODE:
 	if (result != CKR_OK)
 		croak_with("Couldn't get mechanisms", result);
 
-	for (i = 0; i < length; ++i) {
-		const entry* item = map_reverse_find(mechanisms, types[i]);
-		mXPUSHs(item ? newSVpvn(item->key, item->length) : &PL_sv_undef);
-	}
+	for (i = 0; i < length; ++i)
+		mXPUSHs(new_mechanism(self->provider, self->slot, types[i]));
 
-
-HV* mechanism_info(Crypt::HSM::Slot self, CK_MECHANISM_TYPE mechanism)
+SV* mechanism(Crypt::HSM::Slot self, CK_MECHANISM_TYPE type)
 CODE:
-	CK_MECHANISM_INFO info;
-	CK_RV result = self->provider->funcs->C_GetMechanismInfo(self->slot, mechanism, &info);
-	if (result != CKR_OK)
-		croak_with("Couldn't get mechanism info", result);
-
-	RETVAL = newHV();
-	hv_stores(RETVAL, "min-key-size", newSVuv(info.ulMinKeySize));
-	hv_stores(RETVAL, "max-key-size", newSVuv(info.ulMaxKeySize));
-	hv_stores(RETVAL, "flags", newRV_noinc((SV*)reverse_flags(mechanism_flags, info.flags)));
+	RETVAL = new_mechanism(self->provider, self->slot, type);
 OUTPUT:
 	RETVAL
-
 
 void close_all_sessions(Crypt::HSM::Slot self)
 CODE:
@@ -1776,6 +1808,70 @@ CODE:
 	CK_RV result = self->provider->funcs->C_InitToken(self->slot, (CK_BYTE*)pinPV, pin_len, label_buffer);
 	if (result != CKR_OK)
 		croak_with("Could not initialize token", result);
+
+
+MODULE = Crypt::HSM  PACKAGE = Crypt::HSM::Mechanism
+
+
+void DESTROY(Crypt::HSM::Mechanism self)
+CODE:
+	provider_refcount_decrement(self->provider);
+
+const char* name(Crypt::HSM::Mechanism self)
+CODE:
+	const entry* item = map_reverse_find(mechanisms, self->mechanism);
+	RETVAL = item ? item->key : NULL;
+OUTPUT:
+	RETVAL
+
+
+HV* info(Crypt::HSM::Mechanism self)
+CODE:
+	const CK_MECHANISM_INFO* info = get_mechanism_info(self);
+
+	RETVAL = newHV();
+	hv_stores(RETVAL, "min-key-size", newSVuv(info->ulMinKeySize));
+	hv_stores(RETVAL, "max-key-size", newSVuv(info->ulMaxKeySize));
+	hv_stores(RETVAL, "flags", newRV_noinc((SV*)reverse_flags(mechanism_flags, info->flags)));
+OUTPUT:
+	RETVAL
+
+
+bool has_flags(Crypt::HSM::Mechanism self, ..)
+CODE:
+	CK_ULONG flags, i;
+	for (i = 1; i < items; ++i)
+		flags |= get_flags(mechanism_flags, ST(i));
+	const CK_MECHANISM_INFO* info = get_mechanism_info(self);
+	RETVAL = (info->flags & flags) == flags;
+OUTPUT:
+	RETVAL
+
+
+bool flags(Crypt::HSM::Mechanism self, ..)
+PPCODE:
+	const CK_MECHANISM_INFO* info = get_mechanism_info(self);
+	AV* flags = reverse_flags(mechanism_flags, info->flags);
+	int i;
+	for (i = 0; i < av_count(flags); ++i)
+		mXPUSHs(*av_fetch(flags, i, 0));
+	SvREFCNT_dec((SV*)flags);
+
+
+CK_ULONG min_key_size(Crypt::HSM::Mechanism self)
+CODE:
+	const CK_MECHANISM_INFO* info = get_mechanism_info(self);
+	RETVAL = info->ulMinKeySize;
+OUTPUT:
+	RETVAL
+
+
+CK_ULONG max_key_size(Crypt::HSM::Mechanism self)
+CODE:
+	const CK_MECHANISM_INFO* info = get_mechanism_info(self);
+	RETVAL = info->ulMaxKeySize;
+OUTPUT:
+	RETVAL
 
 
 MODULE = Crypt::HSM  PACKAGE = Crypt::HSM::Session PREFIX = session_
@@ -1808,9 +1904,9 @@ OUTPUT:
 	RETVAL
 
 
-CK_SLOT_ID slot(Crypt::HSM::Session self)
+SV* slot(Crypt::HSM::Session self)
 CODE:
-	RETVAL = self->slot;
+	RETVAL = new_slot(self->provider, self->slot);
 OUTPUT:
 	RETVAL
 
