@@ -1,6 +1,7 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+          - Fix argument handling in Mechanism::has_flags
 
 0.009     2023-05-03 17:41:36+02:00 Europe/Amsterdam
           - Add Slot class

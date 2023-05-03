@@ -1845,9 +1845,9 @@ OUTPUT:
 	RETVAL
 
 
-bool has_flags(Crypt::HSM::Mechanism self, ..)
+bool has_flags(Crypt::HSM::Mechanism self, ...)
 CODE:
-	CK_ULONG flags, i;
+	CK_ULONG flags = 0, i;
 	for (i = 1; i < items; ++i)
 		flags |= get_flags(mechanism_flags, ST(i));
 	const CK_MECHANISM_INFO* info = get_mechanism_info(self);
