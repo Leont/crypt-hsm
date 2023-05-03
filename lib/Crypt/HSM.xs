@@ -1471,6 +1471,14 @@ static SV* S_trimmed_value(pTHX_ const CK_BYTE* ptr, size_t max) {
 }
 #define trimmed_value(ptr, max) S_trimmed_value(aTHX_ ptr, max)
 
+static SV* S_version_to_sv(pTHX_ CK_VERSION* version) {
+	SV* string = newSVpvf("%d.%02d", version->major, version->minor);
+	SV* result = new_version(string);
+	SvREFCNT_dec(string);
+	return result;
+}
+#define version_to_sv(version) S_version_to_sv(aTHX_ version)
+
 struct Provider {
 	Refcount refcount;
 	void* handle;
@@ -1658,11 +1666,11 @@ CODE:
 		croak_with("Couldn't get provider info", result);
 
 	RETVAL = newHV();
-	hv_stores(RETVAL, "cryptoki-version", newSVpvf("%d.%d", info.cryptokiVersion.major, info.cryptokiVersion.minor));
+	hv_stores(RETVAL, "cryptoki-version", version_to_sv(&info.cryptokiVersion));
 	hv_stores(RETVAL, "manufacturer-id", trimmed_value(info.manufacturerID, 32));
 	hv_stores(RETVAL, "flags", newRV_noinc((SV*)newAV()));
 	hv_stores(RETVAL, "library-description", trimmed_value(info.libraryDescription, 32));
-	hv_stores(RETVAL, "library-version", newSVpvf("%d.%d", info.libraryVersion.major, info.libraryVersion.minor));
+	hv_stores(RETVAL, "library-version", version_to_sv(&info.libraryVersion));
 OUTPUT:
 	RETVAL
 
@@ -1718,8 +1726,8 @@ CODE:
 	hv_stores(RETVAL, "slot-description", trimmed_value(info.slotDescription, 64));
 	hv_stores(RETVAL, "manufacturer-id", trimmed_value(info.manufacturerID, 32));
 	hv_stores(RETVAL, "flags", newRV_noinc((SV*)reverse_flags(slot_flags, info.flags)));
-	hv_stores(RETVAL, "hardware-version", newSVpvf("%d.%d", info.hardwareVersion.major, info.hardwareVersion.minor));
-	hv_stores(RETVAL, "firmware-version", newSVpvf("%d.%d", info.firmwareVersion.major, info.firmwareVersion.minor));
+	hv_stores(RETVAL, "hardware-version", version_to_sv(&info.hardwareVersion));
+	hv_stores(RETVAL, "firmware-version", version_to_sv(&info.firmwareVersion));
 OUTPUT:
 	RETVAL
 
@@ -1746,8 +1754,8 @@ CODE:
 	hv_stores(RETVAL, "free-public-memory", newSVuv(info.ulFreePublicMemory));
 	hv_stores(RETVAL, "total-private-memory", newSVuv(info.ulTotalPrivateMemory));
 	hv_stores(RETVAL, "free-private-memory", newSVuv(info.ulFreePrivateMemory));
-	hv_stores(RETVAL, "hardware-version", newSVpvf("%d.%d", info.hardwareVersion.major, info.hardwareVersion.minor));
-	hv_stores(RETVAL, "firmware-version", newSVpvf("%d.%d", info.firmwareVersion.major, info.firmwareVersion.minor));
+	hv_stores(RETVAL, "hardware-version", version_to_sv(&info.hardwareVersion));
+	hv_stores(RETVAL, "firmware-version", version_to_sv(&info.firmwareVersion));
 	hv_stores(RETVAL, "utc-time", trimmed_value(info.utcTime, 16));
 OUTPUT:
 	RETVAL
