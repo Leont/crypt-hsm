@@ -22,11 +22,11 @@ use Crypt::HSM;
 
  my @keys = $session->find_objects({ class => 'secret-key' });
 
- my $attr = $session->get_attribute
+ my $attrs = $session->get_attributes($key, [ 'private', 'sensitive' ]);
 
 =head1 DESCRIPTION
 
-This represents a session with a PKCS module such as an HSM. It does all 
+This represents a session with a PKCS module such as an HSM. It does most of the cryptographic work of using a PKCS11 interface.
 
 =head2 Constants
 
@@ -72,7 +72,7 @@ Derive a new key from C<$key>, using mechanism and setting C<$attributes> on it.
 
 =method destroy_object($object)
 
-This deletes the object with the identifier C<$object>
+This deletes the object with the identifier C<$object>.
 
 =method digest($mechanism, $key, $input, ...)
 
@@ -84,7 +84,7 @@ Encrypt C<$plaintext> with C<$mechanism> and C<$key>.
 
 =method find_objects($attributes)
 
-Find all objects that satisfy the given C<$attributes>
+Find all objects that satisfy the given C<$attributes>.
 
 =method generate_key($mechanism, $attributes, ...)
 
@@ -130,7 +130,7 @@ Most of these have implementation-specific defaults.
 
 =method generate_keypair($mechanism, $public_attributes, $private_attributes, ...)
 
-This generates a key pair. The attributes for the 
+This generates a key pair. The attributes for the public and private keys work similar to `generate_key`.
 
 =method generate_random($length)
 
@@ -158,7 +158,7 @@ Log the current session out.
 
 =method object_size($object)
 
-This returns the size of C<$object>
+This returns the size of C<$object>.
 
 =method open_decrypt($mechanism, $key, ...)
 
@@ -186,7 +186,7 @@ Returns the provider object for this session.
 
 =method seed_random($seed)
 
-Mix additional seed material into the token’s random number generator
+Mix additional seed material into the token’s random number generator.
 
 =method set_attributes($object, $attributes)
 
@@ -206,7 +206,7 @@ Returns the slot identifier used for this session.
 
 =method unwrap_key($mechanism, $unwrap_key, $wrapped_key, $attributes, ...)
 
-This unwraps the key wrapped in the bytearray C<$wrapped_key> using C<mechanism> and C<$unwrap_key>, setting C<$attributes> on the new key.
+This unwraps the key wrapped in the bytearray C<$wrapped_key> using C<mechanism> and key C<$unwrap_key>, setting C<$attributes> on the new key.
 
 =method verify($mechanism, $key, $data, $signature, ...)
 
@@ -214,4 +214,4 @@ Verify that C<$signature> matches C<$data>, using C<$mechanism> and C<$key>.
 
 =method wrap_key($mechanism, $wrap_key, $key, ...)
 
-This wraps C<$key> using C<$mechanism> and C<$wrap_key>.
+This wraps key C<$key> using C<$mechanism> and key C<$wrap_key>.
