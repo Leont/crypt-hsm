@@ -136,6 +136,10 @@ This generates a key pair. The attributes for the public and private keys work s
 
 This generate C<$length> bytes of randomness.
 
+=method get_attribute($object, $attribute_name)
+
+This returns the value of the named attribute.
+
 =method get_attributes($object, $attribute_list)
 
 This returns a hash with the attributes that are asked for.

@@ -1980,6 +1980,34 @@ CODE:
 OUTPUT:
 	RETVAL
 
+SV* get_attribute(Crypt::HSM::Session self, CK_OBJECT_HANDLE source, SV* attribute_name)
+CODE:
+	CK_ATTRIBUTE attribute;
+
+	STRLEN name_length;
+	const char* name = SvPVutf8(attribute_name, name_length);
+	const attribute_entry* item = get_attribute_entry(name, name_length);
+	if (item == NULL)
+		Perl_croak(aTHX_ "No such attribute %s", name);
+	attribute.type = item->value;
+
+	CK_RV result = self->provider->funcs->C_GetAttributeValue(self->handle, source, &attribute, 1);
+	if (result != CKR_OK && result != CKR_ATTRIBUTE_SENSITIVE && result != CKR_ATTRIBUTE_TYPE_INVALID && result !=CKR_BUFFER_TOO_SMALL)
+		croak_with("Could not get attribute", result);
+
+	if (attribute.ulValueLen != CK_UNAVAILABLE_INFORMATION) {
+		Newxz(attribute.pValue, attribute.ulValueLen, char);
+		SAVEFREEPV(attribute.pValue);
+	}
+
+	result = self->provider->funcs->C_GetAttributeValue(self->handle, source, &attribute, 1);
+	if (result != CKR_OK && result != CKR_ATTRIBUTE_SENSITIVE && result != CKR_ATTRIBUTE_TYPE_INVALID && result != CKR_BUFFER_TOO_SMALL)
+		croak_with("Could not get attributes", result);
+
+	RETVAL = reverse_attribute(&attribute);
+OUTPUT:
+	RETVAL
+
 HV* get_attributes(Crypt::HSM::Session self, CK_OBJECT_HANDLE source, AV* attributes_av)
 CODE:
 	Attributes attributes;
