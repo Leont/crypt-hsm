@@ -1,6 +1,8 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+
+0.009     2023-05-03 17:41:36+02:00 Europe/Amsterdam
           - Add Slot class
           - Add Mechanism class
           - Add provider and slot methods to Session
