@@ -1,7 +1,7 @@
 TYPEMAP
 	Crypt::HSM              T_MAGICEXT
-	Crypt::HSM::Slot        T_MAGIC
-	Crypt::HSM::Mechanism   T_MAGIC
+	Crypt::HSM::Slot        T_MAGICEXT
+	Crypt::HSM::Mechanism   T_MAGICEXT
 	Crypt::HSM::Session     T_MAGIC
 	Crypt::HSM::Stream      T_MAGIC
 	Crypt::HSM::Encrypt     T_MAGIC
