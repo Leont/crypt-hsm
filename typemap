@@ -1,14 +1,14 @@
 TYPEMAP
 	Crypt::HSM              T_PROVIDER
-	Crypt::HSM::Slot        T_PTROBJ
-	Crypt::HSM::Mechanism   T_PTROBJ
-	Crypt::HSM::Session     T_PTROBJ
-	Crypt::HSM::Stream      T_PTROBJ
-	Crypt::HSM::Encrypt     T_PTROBJ
-	Crypt::HSM::Decrypt     T_PTROBJ
-	Crypt::HSM::Digest      T_PTROBJ
-	Crypt::HSM::Sign        T_PTROBJ
-	Crypt::HSM::Verify      T_PTROBJ
+	Crypt::HSM::Slot        T_MAGIC
+	Crypt::HSM::Mechanism   T_MAGIC
+	Crypt::HSM::Session     T_MAGIC
+	Crypt::HSM::Stream      T_MAGIC
+	Crypt::HSM::Encrypt     T_MAGIC
+	Crypt::HSM::Decrypt     T_MAGIC
+	Crypt::HSM::Digest      T_MAGIC
+	Crypt::HSM::Sign        T_MAGIC
+	Crypt::HSM::Verify      T_MAGIC
 	CK_BBOOL                T_BOOL
 	CK_ULONG                T_U_LONG
 	CK_OBJECT_HANDLE        T_U_LONG

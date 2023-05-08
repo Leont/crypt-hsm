@@ -1525,7 +1525,7 @@ static SV* S_new_slot(pTHX_ struct Provider* provider, CK_SLOT_ID slot) {
 	entry->slot = slot;
 	entry->provider = provider_refcount_increment(provider);
 	SV* object = newSV(0);
-	sv_setref_pv(object, "Crypt::HSM::Slot", (void*)entry);
+	sv_magic(newSVrv(object, "Crypt::HSM::Slot"), NULL, PERL_MAGIC_ext, (const char*)entry, 0);
 	return object;
 }
 #define new_slot(provider, slot) S_new_slot(aTHX_ provider, slot)
@@ -1546,7 +1546,7 @@ static SV* S_new_mechanism(pTHX_ struct Provider* provider, CK_SLOT_ID slot, CK_
 	entry->slot = slot;
 	entry->provider = provider_refcount_increment(provider);
 	SV* object = newSV(0);
-	sv_setref_pv(object, "Crypt::HSM::Mechanism", (void*)entry);
+	sv_magic(newSVrv(object, "Crypt::HSM::Mechanism"), NULL, PERL_MAGIC_ext, (const char*)entry, 0);
 	return object;
 }
 #define new_mechanism(provider, slot, mechanism) S_new_mechanism(aTHX_ provider, slot, mechanism)
