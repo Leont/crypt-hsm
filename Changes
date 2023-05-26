@@ -1,6 +1,8 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+
+0.011     2023-05-26 18:20:12+02:00 Europe/Amsterdam
           - Simplify version logic
           - Switch to Module::Build::Tiny
 
