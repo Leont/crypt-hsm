@@ -1,6 +1,7 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+          - Make code more compatible with old compilers
 
 0.011     2023-05-26 18:20:12+02:00 Europe/Amsterdam
           - Simplify version logic
