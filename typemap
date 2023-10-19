@@ -1,5 +1,5 @@
 TYPEMAP
-	Crypt::HSM              T_MAGICEXT
+	Crypt::HSM::Provider    T_MAGICEXT
 	Crypt::HSM::Slot        T_MAGICEXT
 	Crypt::HSM::Mechanism   T_MAGICEXT
 	Crypt::HSM::Session     T_MAGIC
