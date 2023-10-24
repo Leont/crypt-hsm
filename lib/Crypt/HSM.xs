@@ -1534,7 +1534,7 @@ typedef struct Slot* Crypt__HSM__Slot;
 static const MGVTBL Crypt__HSM__Slot_magic = { NULL, NULL, NULL, NULL, provider_ptr_free, NULL, provider_ptr_dup, NULL };
 
 static SV* S_new_slot(pTHX_ struct Provider* provider, CK_SLOT_ID slot) {
-	struct Slot* entry = PerlMemShared_calloc(1, sizeof(struct Slot*));
+	struct Slot* entry = PerlMemShared_calloc(1, sizeof(struct Slot));
 	entry->slot = slot;
 	entry->provider = provider_refcount_increment(provider);
 	SV* object = newSV(0);
@@ -1556,7 +1556,7 @@ typedef struct Mechanism* Crypt__HSM__Mechanism;
 static const MGVTBL Crypt__HSM__Mechanism_magic = { NULL, NULL, NULL, NULL, provider_ptr_free, NULL, provider_ptr_dup, NULL };
 
 static SV* S_new_mechanism(pTHX_ struct Provider* provider, CK_SLOT_ID slot, CK_MECHANISM_TYPE mechanism) {
-	struct Mechanism* entry = PerlMemShared_calloc(1, sizeof(struct Mechanism*));
+	struct Mechanism* entry = PerlMemShared_calloc(1, sizeof(struct Mechanism));
 	entry->mechanism = mechanism;
 	entry->slot = slot;
 	entry->provider = provider_refcount_increment(provider);
