@@ -1887,7 +1887,7 @@ OUTPUT:
 	RETVAL
 
 
-bool flags(Crypt::HSM::Mechanism self, ..)
+void flags(Crypt::HSM::Mechanism self, ..)
 PPCODE:
 	const CK_MECHANISM_INFO* info = get_mechanism_info(self);
 	AV* flags = reverse_flags(mechanism_flags, info->flags);
@@ -2311,7 +2311,7 @@ OUTPUT:
 	RETVAL
 
 
-Crypt::HSM::Encrypt open_digest(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, CK_OBJECT_HANDLE key, ...)
+Crypt::HSM::Encrypt open_digest(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 3);
 	CK_RV result = self->provider->funcs->C_DigestInit(self->handle, &mechanism);
@@ -2398,7 +2398,7 @@ CODE:
 	RETVAL = newSV(length);
 	SvPOK_only(RETVAL);
 	if (length) {
-		result = self->session->provider->funcs->C_GetOperationState(self->session->handle, SvPVbyte_nolen(RETVAL), &length);
+		result = self->session->provider->funcs->C_GetOperationState(self->session->handle, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &length);
 		SvCUR(RETVAL) = length;
 		if (result != CKR_OK)
 			croak_with("Couldn't get operation state", result);
@@ -2409,7 +2409,7 @@ OUTPUT:
 void set_state(Crypt::HSM::Stream self, SV* state)
 CODE:
 	STRLEN stateLen;
-	char* statePV = SvPVbyte(state, stateLen);
+	CK_BYTE* statePV = (CK_BYTE*)SvPVbyte(state, stateLen);
 	CK_RV result = self->session->provider->funcs->C_SetOperationState(self->session->handle, statePV, stateLen, self->encrypt_key, self->sign_key);
 	if (result != CKR_OK)
 		croak_with("Couldn't set operation state", result);
@@ -2496,7 +2496,7 @@ CODE:
 
 	RETVAL = newSV(decryptedDataLen + 1);
 	SvPOK_only(RETVAL);
-	result = self->session->provider->funcs->C_DecryptFinal(self->session->handle, SvPVbyte_nolen(RETVAL), &decryptedDataLen);
+	result = self->session->provider->funcs->C_DecryptFinal(self->session->handle, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &decryptedDataLen);
 	SvCUR(RETVAL) = decryptedDataLen;
 	if (result != CKR_OK)
 		croak_with("Couldn't decrypt", result);
@@ -2517,13 +2517,11 @@ CODE:
 		croak_with("Couldn't compute digested length", result);
 
 
-SV* add_key(Crypt::HSM::Digest self, CK_OBJECT_HANDLE key)
+void add_key(Crypt::HSM::Digest self, CK_OBJECT_HANDLE key)
 CODE:
 	CK_RV result = self->session->provider->funcs->C_DigestKey(self->session->handle, key);
 	if (result != CKR_OK)
 		croak_with("Couldn't compute digested length", result);
-OUTPUT:
-	RETVAL
 
 
 SV* finalize(Crypt::HSM::Digest self)
