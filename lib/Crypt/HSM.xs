@@ -852,11 +852,11 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 		}
 
 		case CKM_RSA_PKCS_PSS: {
-			if (array_len < 1)
+			if (array_len < 2)
 				Perl_croak(aTHX_ "No hash given for rsa-pkcs-pss");
 			CK_MECHANISM_TYPE hash = get_mechanism_type(array[0]);
-			CK_RSA_PKCS_MGF_TYPE generator = map_get(generators, array[0], "generator");
-			specialize_pss(&result, hash, generator, array + 1, array_len - 1);
+			CK_RSA_PKCS_MGF_TYPE generator = map_get(generators, array[2], "generator");
+			specialize_pss(&result, hash, generator, array + 2, array_len - 2);
 			break;
 		}
 		case CKM_SHA224_RSA_PKCS_PSS:
@@ -960,11 +960,12 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 			INIT_PARAMS(CK_RSA_PKCS_OAEP_PARAMS);
 
 			params->hashAlg = get_mechanism_type(array[0]);
-			params->mgf = map_get(generators, array[0], "generator");
-			params->source = SvTRUE(array[1]);
+			params->mgf = map_get(generators, array[1], "generator");
 
-			if (array_len > 2)
+			if (array_len > 2) {
 				params->pSourceData = get_buffer(array[2], &params->ulSourceDataLen);
+				params->source = 1;
+			}
 
 			break;
 		}
