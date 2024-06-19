@@ -882,8 +882,8 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 
 		case CKM_ECDH1_DERIVE:
 		case CKM_ECDH1_COFACTOR_DERIVE: {
-			if (array_len < 2)
-				Perl_croak(aTHX_ "Insufficient parameters for derivation");
+			if (array_len < 1)
+				Perl_croak(aTHX_ "No public key given for ECDH derivation");
 
 			INIT_PARAMS(CK_ECDH1_DERIVE_PARAMS);
 
@@ -891,7 +891,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 
 			params->kdf = array_len > 1 ? map_get(kdfs, array[1], "kdf") : CKD_NULL;
 
-			if (array_len > 2)
+			if (array_len > 2 && SvOK(array[2]))
 				params->pSharedData = get_buffer(array[2], &params->ulSharedDataLen);
 
 			break;

@@ -3,6 +3,7 @@ Revision history for Crypt-HSM
 {{$NEXT}}
           - Fix hash/generator distinction in RSA PKCS PSS
           - Add support for AES/DES CFB/OFB
+          - Fix argument handling for ecdh1-derive
           - Fix various compiler warnings in XS code
 
 0.016     2024-01-05 18:38:07+01:00 Europe/Brussels
