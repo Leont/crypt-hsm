@@ -799,6 +799,14 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 		case CKM_DES3_CBC_PAD:
 		case CKM_AES_CBC:
 		case CKM_AES_CBC_PAD:
+
+		case CKM_DES_CFB8:
+		case CKM_DES_CFB64:
+		case CKM_DES_OFB8:
+		case CKM_DES_OFB64:
+		case CKM_AES_CFB8:
+		case CKM_AES_CFB128:
+		case CKM_AES_OFB:
 			if (array_len < 1)
 				Perl_croak(aTHX_ "No IV given for cipher needing it");
 			result.pParameter = get_buffer(array[0], &result.ulParameterLen);
