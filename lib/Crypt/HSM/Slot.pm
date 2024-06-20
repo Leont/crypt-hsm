@@ -20,7 +20,7 @@ This represents a slot on a PKCS implementation.
 
 =method open_session($flags = [])
 
-This opens a session to this slot. C<$flag> is an optional array that may currenlt contain the value C<'rw-session'> to enable writing to the token. This returns a Crypt::HSM::Session object.
+This opens a L<Crypt::HSM::Session|Crypt::HSM::Session> to this slot. C<$flag> is an optional array that may currently contain the value C<'rw-session'> to enable writing to the token.
 
 =method mechanisms()
 
