@@ -982,10 +982,11 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 			if (array_len) {
 				INIT_PARAMS(CK_EDDSA_PARAMS);
 
-				params->phFlag = SvTRUE(array[0]);
+				if (SvOK(array[0]))
+					params->pContextData = get_buffer(array[0], &params->ulContextDataLen);
 
 				if (array_len > 1)
-					params->pContextData = get_buffer(array[0], &params->ulContextDataLen);
+					params->phFlag = SvTRUE(array[0]);
 			}
 		}
 	}
