@@ -1,6 +1,8 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+
+0.017     2024-06-23 14:59:22+02:00 Europe/Brussels
           - Add Crypt::HSM::Key
           - Fixed using Mechanism object as mechanism argument
           - Fix hash/generator distinction in RSA PKCS PSS
