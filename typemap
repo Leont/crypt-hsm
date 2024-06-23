@@ -3,6 +3,7 @@ TYPEMAP
 	Crypt::HSM::Slot        T_MAGICEXT
 	Crypt::HSM::Mechanism   T_MAGICEXT
 	Crypt::HSM::Session     T_MAGIC
+	Crypt::HSM::Key         T_MAGIC
 	Crypt::HSM::Stream      T_MAGIC
 	Crypt::HSM::Encrypt     T_MAGIC
 	Crypt::HSM::Decrypt     T_MAGIC
@@ -11,7 +12,6 @@ TYPEMAP
 	Crypt::HSM::Verify      T_MAGIC
 	CK_BBOOL                T_BOOL
 	CK_ULONG                T_U_LONG
-	CK_OBJECT_HANDLE        T_U_LONG
 	CK_SLOT_ID              T_U_LONG
 
 	CK_USER_TYPE            T_USER_TYPE
