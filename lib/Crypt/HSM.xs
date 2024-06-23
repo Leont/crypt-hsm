@@ -1604,8 +1604,10 @@ static SV* S_new_mechanism(pTHX_ struct Provider* provider, CK_SLOT_ID slot, CK_
 
 static CK_MECHANISM_TYPE S_get_mechanism_type(pTHX_ SV* input) {
 	if (SvROK(input) && sv_derived_from(input, "Crypt::HSM::Mechanism")) {
-		IV tmp = SvIV(SvRV(input));
-		struct Mechanism* mech = INT2PTR(struct Mechanism*, tmp);
+		MAGIC* magic = mg_findext(SvRV(input), PERL_MAGIC_ext, &Crypt__HSM__Mechanism_magic);
+		if (!magic)
+			Perl_croak(aTHX_ "No magic found on Crypt::HSM::Mechanism object");
+		struct Mechanism* mech = (struct Mechanism*) magic->mg_ptr;
 		return mech->mechanism;
 	} else {
 		return map_get(mechanisms, input, "mechanism");

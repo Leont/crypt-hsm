@@ -1,6 +1,7 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+          - Fixed using Mechanism object as mechanism argument
           - Fix hash/generator distinction in RSA PKCS PSS
           - Add support for AES/DES CFB/OFB
           - Fix argument handling for ecdh1-derive
