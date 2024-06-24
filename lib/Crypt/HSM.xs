@@ -833,6 +833,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 
 			INIT_PARAMS(CK_GCM_PARAMS);
 
+			SV_CHECK_THINKFIRST(array[0]);
 			params->pIv = get_buffer(array[0], &params->ulIvLen);
 			params->ulIvBits = 8 * params->ulIvLen;
 
