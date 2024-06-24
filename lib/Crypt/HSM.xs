@@ -233,6 +233,9 @@ static const map state_flags = {
 	{ STR_WITH_LEN("rw-so-functions"), CKS_RW_SO_FUNCTIONS },
 };
 
+static const map wait_flags = {
+	{ STR_WITH_LEN("dont-block"), CKF_DONT_BLOCK },
+};
 
 static UV S_get_flags(pTHX_ const map table, size_t table_size, SV* input) {
 	if (SvROK(input) && SvTYPE(SvRV(input)) == SVt_PVAV) {
@@ -1768,6 +1771,24 @@ PPCODE:
 SV* slot(Crypt::HSM::Provider self, CK_SLOT_ID slot)
 CODE:
 	RETVAL = new_slot(self, slot);
+OUTPUT:
+	RETVAL
+
+SV* wait_for_event(Crypt::HSM::Provider self, ...)
+CODE:
+	CK_ULONG flags = 0, i;
+	for (i = 1; i < items; ++i)
+		flags |= get_flags(wait_flags, ST(i));
+
+	CK_SLOT_ID slot;
+	CK_RV result = self->funcs->C_WaitForSlotEvent(flags, &slot, NULL);
+
+	if (result == CKR_OK)
+		RETVAL = new_slot(self, slot);
+	else if (result == CKR_NO_EVENT)
+		RETVAL = &PL_sv_undef;
+	else
+		croak_with("Couldn't wait for slot event", result);
 OUTPUT:
 	RETVAL
 

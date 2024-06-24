@@ -29,3 +29,7 @@ This returns a L<Crypt::HSM::Slot|Crypt::HSM::Slot> for the slot with the given 
 =method info()
 
 This returns a hash with information about the HSM.
+
+=method wait_for_event(@flags)
+
+This will wait until an event happens (e.g. a token becomes available in a slot). It currently supports only one flag C<'dont-block'>. It returns a L<Crypt::HSM::Slot|Crypt::HSM::Slot>, or if C<'dont-block'> is passed and no event is pending it returns C<undef>.
