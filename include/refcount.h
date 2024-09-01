@@ -2,33 +2,6 @@
 #define XS_REFCOUNT_H
 
 
-#if defined(_MSC_VER)
-
-/* Visual C++ doesn't support C11 atomics yet. However, Windows documentation
- * guarantees that simple reads and writes are atomic:
- * https://docs.microsoft.com/en-us/windows/win32/sync/interlocked-variable-access
- */
-#  include <windows.h>
-
-#define HAS_ATOMICS
-typedef volatile size_t Refcount;
-
-#define refcount_inited(counter) (*(counter) != 0)
-#define refcount_load(counter) *(counter)
-#define refcount_init(counter, value) do { *(counter) = (value); } while (0)
-#define refcount_destroy(count) ((void)0)
-
-#ifdef _WIN64
-#	define refcount_inc(counter) InterlockedExchangeAdd64((LONG64*)(counter), 1)
-#	define refcount_dec(counter) InterlockedExchangeAdd64((LONG64*)(counter), -1)
-#else
-#	define refcount_inc(counter) InterlockedExchangeAdd((LONG*)(counter), 1)
-#	define refcount_dec(counter) InterlockedExchangeAdd((LONG*)(counter), -1)
-#endif
-
-#else
-
-
 /* C11 atomics based implementation */
 
 #if defined(__clang__)
@@ -39,7 +12,7 @@ typedef volatile size_t Refcount;
 #	define HAS_ATOMICS
 #endif
 
-# ifdef HAS_ATOMICS
+#ifdef HAS_ATOMICS
 
 #include <stdatomic.h>
 
@@ -57,14 +30,32 @@ static inline atomic_size_t refcount_dec(Refcount* refcount) {
 }
 #	define refcount_destroy(count) ((void)0)
 
+#elif defined(_MSC_VER)
+
+/* Visual C++ doesn't support C11 atomics yet. However, Windows documentation
+ * guarantees that simple reads and writes are atomic:
+ * https://docs.microsoft.com/en-us/windows/win32/sync/interlocked-variable-access
+ */
+#include <windows.h>
+
+#define HAS_ATOMICS
+typedef volatile size_t Refcount;
+
+#define refcount_inited(counter) (*(counter) != 0)
+#define refcount_load(counter) *(counter)
+#define refcount_init(counter, value) do { *(counter) = (value); } while (0)
+#define refcount_destroy(count) ((void)0)
+
+#ifdef _WIN64
+#	define refcount_inc(counter) InterlockedExchangeAdd64((LONG64*)(counter), 1)
+#	define refcount_dec(counter) InterlockedExchangeAdd64((LONG64*)(counter), -1)
+#else
+#	define refcount_inc(counter) InterlockedExchangeAdd((LONG*)(counter), 1)
+#	define refcount_dec(counter) InterlockedExchangeAdd((LONG*)(counter), -1)
 #endif
 
-#endif
-
-#ifndef HAS_ATOMICS
-
+#elif defined(USE_THREADS)
 /* Mutex based fallback implementation for threaded perls */
-#ifdef USE_THREADS
 
 typedef struct {
 	perl_mutex mutex;
@@ -118,8 +109,6 @@ typedef unsigned long Refcount;
 #define refcount_inc(counter) ((*(counter))++)
 #define refcount_dec(counter) ((*(counter))--)
 #define refcount_destroy(count) ((void)0)
-
-#endif
 
 #endif
 
