@@ -18,7 +18,6 @@
 
 typedef atomic_size_t Refcount;
 
-#define refcount_inited(counter) (refcount_load(counter) != 0)
 #define refcount_load(counter) atomic_load(counter)
 #define refcount_init(counter, value) atomic_init(counter, value)
 #define refcount_inc(counter) atomic_fetch_add_explicit(counter, 1, memory_order_relaxed)
@@ -41,7 +40,6 @@ static inline atomic_size_t refcount_dec(Refcount* refcount) {
 #define HAS_ATOMICS
 typedef volatile size_t Refcount;
 
-#define refcount_inited(counter) (*(counter) != 0)
 #define refcount_load(counter) *(counter)
 #define refcount_init(counter, value) do { *(counter) = (value); } while (0)
 #define refcount_destroy(count) ((void)0)
@@ -61,8 +59,6 @@ typedef struct {
 	perl_mutex mutex;
 	UV counter;
 } Refcount;
-
-#define refcount_inited(refcount) ((refcount)->counter != 0)
 
 static inline UV S_refcount_load(pTHX_ Refcount* refcount) {
 	MUTEX_LOCK(&refcount->mutex);
@@ -103,7 +99,6 @@ static inline void S_refcount_destroy(pTHX_ Refcount* refcount) {
 /* Non-atomic fallback implementation for non-threaded perls */
 typedef unsigned long Refcount;
 
-#define refcount_inited(counter) (*(counter) != 0)
 #define refcount_load(counter) (*(counter))
 #define refcount_init(counter, value) do { *(counter) = (value); } while (0)
 #define refcount_inc(counter) ((*(counter))++)
