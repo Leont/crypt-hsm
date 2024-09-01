@@ -13,53 +13,57 @@
 #define HAS_ATOMICS
 typedef volatile size_t Refcount;
 
-#  define refcount_inited(counter) (*(counter) != 0)
-#  define refcount_load(counter) *(counter)
-#  define refcount_init(counter, value) do { *(counter) = (value); } while (0)
-#  define refcount_destroy(count) ((void)0)
+#define refcount_inited(counter) (*(counter) != 0)
+#define refcount_load(counter) *(counter)
+#define refcount_init(counter, value) do { *(counter) = (value); } while (0)
+#define refcount_destroy(count) ((void)0)
 
-#  ifdef _WIN64
-#    define refcount_inc(counter) InterlockedExchangeAdd64((LONG64*)(counter), 1)
-#    define refcount_dec(counter) InterlockedExchangeAdd64((LONG64*)(counter), -1)
-#  else
-#    define refcount_inc(counter) InterlockedExchangeAdd((LONG*)(counter), 1)
-#    define refcount_dec(counter) InterlockedExchangeAdd((LONG*)(counter), -1)
-#  endif
+#ifdef _WIN64
+#	define refcount_inc(counter) InterlockedExchangeAdd64((LONG64*)(counter), 1)
+#	define refcount_dec(counter) InterlockedExchangeAdd64((LONG64*)(counter), -1)
+#else
+#	define refcount_inc(counter) InterlockedExchangeAdd((LONG*)(counter), 1)
+#	define refcount_dec(counter) InterlockedExchangeAdd((LONG*)(counter), -1)
+#endif
 
 #else
 
-#  if defined(__clang__)
-#    if __has_feature(cxx_atomic)
-#      define HAS_ATOMICS
-#    endif
-#  elif __GNUC__ > 4
-#    define HAS_ATOMICS
-#  endif
+
+/* C11 atomics based implementation */
+
+#if defined(__clang__)
+#	if __has_feature(cxx_atomic)
+#		define HAS_ATOMICS
+#	endif
+#elif __GNUC__ > 4
+#	define HAS_ATOMICS
+#endif
 
 # ifdef HAS_ATOMICS
 
-#  include <stdatomic.h>
+#include <stdatomic.h>
 
 typedef atomic_size_t Refcount;
 
-#    define refcount_inited(counter) (refcount_load(counter) != 0)
-#    define refcount_load(counter) atomic_load(counter)
-#    define refcount_init(counter, value) atomic_init(counter, value)
-#    define refcount_inc(counter) atomic_fetch_add_explicit(counter, 1, memory_order_relaxed)
+#define refcount_inited(counter) (refcount_load(counter) != 0)
+#define refcount_load(counter) atomic_load(counter)
+#define refcount_init(counter, value) atomic_init(counter, value)
+#define refcount_inc(counter) atomic_fetch_add_explicit(counter, 1, memory_order_relaxed)
 static inline atomic_size_t refcount_dec(Refcount* refcount) {
 	atomic_size_t result = atomic_fetch_sub_explicit(refcount, 1, memory_order_release);
 	if (result == 1)
 		atomic_thread_fence(memory_order_acquire);
 	return result;
 }
-#    define refcount_destroy(count) ((void)0)
+#	define refcount_destroy(count) ((void)0)
 
-#  endif
+#endif
 
 #endif
 
 #ifndef HAS_ATOMICS
 
+/* Mutex based fallback implementation for threaded perls */
 #ifdef USE_THREADS
 
 typedef struct {
@@ -67,7 +71,7 @@ typedef struct {
 	UV counter;
 } Refcount;
 
-#  define refcount_inited(refcount) ((refcount)->counter != 0)
+#define refcount_inited(refcount) ((refcount)->counter != 0)
 
 static inline UV S_refcount_load(pTHX_ Refcount* refcount) {
 	MUTEX_LOCK(&refcount->mutex);
@@ -75,13 +79,13 @@ static inline UV S_refcount_load(pTHX_ Refcount* refcount) {
 	MUTEX_UNLOCK(&refcount->mutex);
 	return result;
 }
-#  define refcount_load(counter) S_refcount_load(aTHX_ counter)
+#define refcount_load(counter) S_refcount_load(aTHX_ counter)
 
 static inline void S_refcount_init(pTHX_ Refcount* refcount, UV value) {
 	MUTEX_INIT(&refcount->mutex);
 	refcount->counter = value;
 }
-#  define refcount_init(counter, value) S_refcount_init(aTHX_ counter, value)
+#define refcount_init(counter, value) S_refcount_init(aTHX_ counter, value)
 
 static inline void S_refcount_inc(pTHX_ Refcount* refcount) {
 	MUTEX_LOCK(&refcount->mutex);
@@ -103,18 +107,19 @@ static inline void S_refcount_destroy(pTHX_ Refcount* refcount) {
 }
 #define refcount_destroy(refcount) S_refcount_destroy(aTHX_ refcount)
 
-#  else
+#else
 
+/* Non-atomic fallback implementation for non-threaded perls */
 typedef unsigned long Refcount;
 
-#    define refcount_inited(counter) (*(counter) != 0)
-#    define refcount_load(counter) (*(counter))
-#    define refcount_init(counter, value) do { *(counter) = (value); } while (0)
-#    define refcount_inc(counter) ((*(counter))++)
-#    define refcount_dec(counter) ((*(counter))--)
-#    define refcount_destroy(count) ((void)0)
+#define refcount_inited(counter) (*(counter) != 0)
+#define refcount_load(counter) (*(counter))
+#define refcount_init(counter, value) do { *(counter) = (value); } while (0)
+#define refcount_inc(counter) ((*(counter))++)
+#define refcount_dec(counter) ((*(counter))--)
+#define refcount_destroy(count) ((void)0)
 
-#  endif
+#endif
 
 #endif
 
