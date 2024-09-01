@@ -12,9 +12,15 @@ use Crypt::HSM;
 
 =head1 SYNOPSIS
 
+ my ($key) = $session->find_objects({ label => $label, encrypt => 1 });
+ if (not $key) {
+	$key = $session->generate_key('aes-key-gen', { label => $label, sensitive => 1, "value-len" => 32 });
+ }
+ $session->encrypt('aes-gcm', $key, $plaintext, $nonce);
+
 =head1 DESCRIPTION
 
-
+This class represents a key object in the HSM's database. It's returned by L<Crypt::HSM::Session|Crypt::HSM::Session> methods like C<find_object> and C<generate_key>, and used in methods such as C<encrypt>, C<decrypt>, C<sign> and C<verify>.
 
 =method copy_object($attributes)
 
@@ -39,4 +45,3 @@ This returns the size of this object.
 =method set_attributes($attributes)
 
 This sets the C<$attributes> on this object.
-
