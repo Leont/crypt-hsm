@@ -1091,10 +1091,10 @@ static const map certificate_types = {
 #define get_cert_type(input) map_get(certificate_types, input, "cert type")
 
 static const map certificate_categories = {
-	{ STR_WITH_LEN("certificate-category-unspecified"), CK_CERTIFICATE_CATEGORY_UNSPECIFIED },
-	{ STR_WITH_LEN("certificate-category-token-user"), CK_CERTIFICATE_CATEGORY_TOKEN_USER },
-	{ STR_WITH_LEN("certificate-category-authority"), CK_CERTIFICATE_CATEGORY_AUTHORITY },
-	{ STR_WITH_LEN("certificate-category-other-entity"), CK_CERTIFICATE_CATEGORY_OTHER_ENTITY },
+	{ STR_WITH_LEN("unspecified"), CK_CERTIFICATE_CATEGORY_UNSPECIFIED },
+	{ STR_WITH_LEN("token-user"), CK_CERTIFICATE_CATEGORY_TOKEN_USER },
+	{ STR_WITH_LEN("authority"), CK_CERTIFICATE_CATEGORY_AUTHORITY },
+	{ STR_WITH_LEN("other-entity"), CK_CERTIFICATE_CATEGORY_OTHER_ENTITY },
 };
 #define get_cert_cat(input) map_get(certificate_categories, input, "cert type")
 
@@ -1132,7 +1132,7 @@ static const attribute_map attributes = {
 	{ STR_WITH_LEN("owner"), CKA_OWNER, ByteAttr },
 	{ STR_WITH_LEN("attr-types"), CKA_ATTR_TYPES, ByteAttr },
 	{ STR_WITH_LEN("trusted"), CKA_TRUSTED, BoolAttr },
-	{ STR_WITH_LEN("certificate-category"), CKA_CERTIFICATE_CATEGORY, IntAttr },
+	{ STR_WITH_LEN("certificate-category"), CKA_CERTIFICATE_CATEGORY, CertCatAttr },
 	{ STR_WITH_LEN("java-midp-security-domain"), CKA_JAVA_MIDP_SECURITY_DOMAIN, IntAttr },
 	{ STR_WITH_LEN("url"), CKA_URL, StrAttr },
 	{ STR_WITH_LEN("hash-of-subject-public-key"), CKA_HASH_OF_SUBJECT_PUBLIC_KEY, ByteAttr },
