@@ -1,6 +1,7 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+          - Rename Crypt::HSM::Key to Crypt::HSM::Object
           - Allow for writing to IV in aes-gcm
           - Add wait_for_event
           - Add more parentheses to fallback refcounting

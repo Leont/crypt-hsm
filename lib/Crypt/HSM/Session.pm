@@ -55,7 +55,7 @@ Many functions will also take one or more mechanism specific additional argument
 
 =method create_object($attributes)
 
-Create an object with the given C<$attribute> hash. This returns a L<Crypt::HSM::Key|Crypt::HSM::Key> object.
+Create an object with the given C<$attribute> hash. This returns a L<Crypt::HSM::Object|Crypt::HSM::Object> object.
 
 =method decrypt($mechanism, $key, $ciphertext, ...)
 
@@ -63,7 +63,7 @@ Decrypt C<$ciphertext> with C<$mechanism> and C<$key>. This may take mechanism d
 
 =method derive_key($mechanism, $key, $attributes, ...)
 
-Derive a new key from C<$key>, using mechanism and setting C<$attributes> on it. This may take mechanism dependent additional arguments. This returns a L<Crypt::HSM::Key|Crypt::HSM::Key> object.
+Derive a new key from C<$key>, using mechanism and setting C<$attributes> on it. This may take mechanism dependent additional arguments. This returns a L<Crypt::HSM::Object|Crypt::HSM::Object> object.
 
 =method digest($mechanism, $key, $input, ...)
 
@@ -75,7 +75,7 @@ Encrypt C<$plaintext> with C<$mechanism> and C<$key>. This may take mechanism de
 
 =method find_objects($attributes)
 
-Find all objects that satisfy the given C<$attributes>. This returns a list of L<Crypt::HSM::Key|Crypt::HSM::Key> objects.
+Find all objects that satisfy the given C<$attributes>. This returns a list of L<Crypt::HSM::Object|Crypt::HSM::Object> objects.
 
 =method generate_key($mechanism, \%attributes)
 
@@ -117,11 +117,11 @@ This sets the length of a key, this can be useful when creating a C<'generic-sec
 
 =back
 
-Most of these have implementation-specific defaults. This returns a L<Crypt::HSM::Key|Crypt::HSM::Key> object.
+Most of these have implementation-specific defaults. This returns a L<Crypt::HSM::Object|Crypt::HSM::Object> object.
 
 =method generate_keypair($mechanism, \%public_attributes, \%private_attributes)
 
-This generates a key pair. The attributes for the public and private keys work similar to `generate_key`. This returns two L<Crypt::HSM::Key|Crypt::HSM::Key> objects.
+This generates a key pair. The attributes for the public and private keys work similar to `generate_key`. This returns two L<Crypt::HSM::Object|Crypt::HSM::Object> objects.
 
 =method generate_random($length)
 
@@ -185,7 +185,7 @@ Returns the slot identifier used for this session.
 
 =method unwrap_key($mechanism, $unwrap_key, $wrapped_key, $attributes, ...)
 
-This unwraps the key wrapped in the bytearray C<$wrapped_key> using C<mechanism> and key C<$unwrap_key>, setting C<$attributes> on the new key. This returns a L<Crypt::HSM::Key|Crypt::HSM::Key> object.
+This unwraps the key wrapped in the bytearray C<$wrapped_key> using C<mechanism> and key C<$unwrap_key>, setting C<$attributes> on the new key. This returns a L<Crypt::HSM::Object|Crypt::HSM::Object> object.
 
 =method verify($mechanism, $key, $data, $signature, ...)
 

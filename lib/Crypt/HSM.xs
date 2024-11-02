@@ -1658,14 +1658,14 @@ struct Object {
 	struct Session* session;
 	CK_OBJECT_HANDLE handle;
 };
-typedef struct Object* Crypt__HSM__Key;
+typedef struct Object* Crypt__HSM__Object;
 
 static SV* S_new_object(pTHX_ struct Session* session, CK_OBJECT_HANDLE handle) {
 	struct Object* entry = PerlMemShared_calloc(1, sizeof(struct Object));
 	entry->session = session_refcount_increment(session);
 	entry->handle = handle;
 	SV* object = newSV(0);
-	MAGIC* magic = sv_magicext(newSVrv(object, "Crypt::HSM::Key"), NULL, PERL_MAGIC_ext, NULL, (const char*)entry, 0);
+	MAGIC* magic = sv_magicext(newSVrv(object, "Crypt::HSM::Object"), NULL, PERL_MAGIC_ext, NULL, (const char*)entry, 0);
 	return object;
 }
 #define new_object(session, object) S_new_object(aTHX_ session, object)
@@ -2096,7 +2096,7 @@ OUTPUT:
 	RETVAL
 
 
-SV* encrypt(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Key key, SV* data, ...)
+SV* encrypt(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, SV* data, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 4);
 	CK_RV result = self->provider->funcs->C_EncryptInit(self->handle, &mechanism, key->handle);
@@ -2119,7 +2119,7 @@ OUTPUT:
 	RETVAL
 
 
-Crypt::HSM::Encrypt open_encrypt(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Key key, ...)
+Crypt::HSM::Encrypt open_encrypt(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 3);
 	CK_RV result = self->provider->funcs->C_EncryptInit(self->handle, &mechanism, key->handle);
@@ -2133,7 +2133,7 @@ OUTPUT:
 	RETVAL
 
 
-SV* decrypt(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Key key, SV* data, ...)
+SV* decrypt(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, SV* data, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 4);
 	CK_RV result = self->provider->funcs->C_DecryptInit(self->handle, &mechanism, key->handle);
@@ -2156,7 +2156,7 @@ OUTPUT:
 	RETVAL
 
 
-Crypt::HSM::Encrypt open_decrypt(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Key key, ...)
+Crypt::HSM::Encrypt open_decrypt(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 3);
 	CK_RV result = self->provider->funcs->C_DecryptInit(self->handle, &mechanism, key->handle);
@@ -2170,7 +2170,7 @@ OUTPUT:
 	RETVAL
 
 
-SV* sign(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Key key, SV* data, ...)
+SV* sign(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, SV* data, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 4);
 	CK_RV result = self->provider->funcs->C_SignInit(self->handle, &mechanism, key->handle);
@@ -2193,7 +2193,7 @@ OUTPUT:
 	RETVAL
 
 
-Crypt::HSM::Encrypt open_sign(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Key key, ...)
+Crypt::HSM::Encrypt open_sign(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 3);
 	CK_RV result = self->provider->funcs->C_SignInit(self->handle, &mechanism, key->handle);
@@ -2207,7 +2207,7 @@ OUTPUT:
 	RETVAL
 
 
-bool verify(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Key key, SV* data, SV* signature, ...)
+bool verify(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, SV* data, SV* signature, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 5);
 	CK_RV result = self->provider->funcs->C_VerifyInit(self->handle, &mechanism, key->handle);
@@ -2230,7 +2230,7 @@ OUTPUT:
 	RETVAL
 
 
-Crypt::HSM::Encrypt open_verify(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Key key, ...)
+Crypt::HSM::Encrypt open_verify(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 3);
 	CK_RV result = self->provider->funcs->C_VerifyInit(self->handle, &mechanism, key->handle);
@@ -2280,7 +2280,7 @@ OUTPUT:
 	RETVAL
 
 
-SV* wrap_key(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Key wrappingKey, Crypt::HSM::Key key, ...)
+SV* wrap_key(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object wrappingKey, Crypt::HSM::Object key, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 4);
 	CK_ULONG length;
@@ -2297,7 +2297,7 @@ CODE:
 OUTPUT:
 	RETVAL
 
-SV* unwrap_key(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Key unwrappingKey, SV* wrapped, Attributes attributes, ...)
+SV* unwrap_key(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object unwrappingKey, SV* wrapped, Attributes attributes, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 5);
 	CK_ULONG wrappedLen;
@@ -2310,7 +2310,7 @@ CODE:
 OUTPUT:
 	RETVAL
 
-SV* derive_key(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Key baseKey, Attributes attributes, ...)
+SV* derive_key(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object baseKey, Attributes attributes, ...)
 CODE:
 	CK_OBJECT_HANDLE handle;
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 4);
@@ -2346,14 +2346,14 @@ OUTPUT:
 int CLONE_SKIP();
 
 
-MODULE = Crypt::HSM  PACKAGE = Crypt::HSM::Key
+MODULE = Crypt::HSM  PACKAGE = Crypt::HSM::Object
 
 
-void DESTROY(Crypt::HSM::Key self)
+void DESTROY(Crypt::HSM::Object self)
 CODE:
 	session_refcount_decrement(self->session);
 
-SV* copy_object(Crypt::HSM::Key self, Attributes template)
+SV* copy_object(Crypt::HSM::Object self, Attributes template)
 CODE:
 	CK_OBJECT_HANDLE handle;
 	CK_RV result = self->session->provider->funcs->C_CopyObject(self->session->handle, self->handle, template.member, template.length, &handle);
@@ -2364,13 +2364,13 @@ OUTPUT:
 	RETVAL
 
 
-void destroy_object(Crypt::HSM::Key self)
+void destroy_object(Crypt::HSM::Object self)
 CODE:
 	CK_RV result = self->session->provider->funcs->C_DestroyObject(self->session->handle, self->handle);
 	if (result != CKR_OK)
 		croak_with("Could not destroy object", result);
 
-CK_ULONG object_size(Crypt::HSM::Key self)
+CK_ULONG object_size(Crypt::HSM::Object self)
 CODE:
 	CK_RV result = self->session->provider->funcs->C_GetObjectSize(self->session->handle, self->handle, &RETVAL);
 	if (result != CKR_OK)
@@ -2378,7 +2378,7 @@ CODE:
 OUTPUT:
 	RETVAL
 
-SV* get_attribute(Crypt::HSM::Key self, SV* attribute_name)
+SV* get_attribute(Crypt::HSM::Object self, SV* attribute_name)
 CODE:
 	CK_ATTRIBUTE attribute;
 
@@ -2406,7 +2406,7 @@ CODE:
 OUTPUT:
 	RETVAL
 
-HV* get_attributes(Crypt::HSM::Key self, AV* attributes_av)
+HV* get_attributes(Crypt::HSM::Object self, AV* attributes_av)
 CODE:
 	Attributes attributes;
 	attributes.length = av_len(attributes_av) + 1;
@@ -2447,7 +2447,7 @@ CODE:
 OUTPUT:
 	RETVAL
 
-void set_attributes(Crypt::HSM::Key self, Attributes attributes)
+void set_attributes(Crypt::HSM::Object self, Attributes attributes)
 CODE:
 	CK_RV result = self->session->provider->funcs->C_SetAttributeValue(self->session->handle, self->handle, attributes.member, attributes.length);
 	if (result != CKR_OK)
@@ -2588,7 +2588,7 @@ CODE:
 		croak_with("Couldn't compute digested length", result);
 
 
-void add_key(Crypt::HSM::Digest self, Crypt::HSM::Key key)
+void add_key(Crypt::HSM::Digest self, Crypt::HSM::Object key)
 CODE:
 	CK_RV result = self->session->provider->funcs->C_DigestKey(self->session->handle, key->handle);
 	if (result != CKR_OK)
