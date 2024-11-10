@@ -1808,7 +1808,7 @@ CODE:
 		croak_with("Couldn't get slot info", result);
 
 	RETVAL = newHV();
-	hv_stores(RETVAL, "slot-description", trimmed_value(info.slotDescription, 64));
+	hv_stores(RETVAL, "description", trimmed_value(info.slotDescription, 64));
 	hv_stores(RETVAL, "manufacturer-id", trimmed_value(info.manufacturerID, 32));
 	hv_stores(RETVAL, "flags", newRV_noinc((SV*)reverse_flags(slot_flags, info.flags)));
 	hv_stores(RETVAL, "hardware-version", version_to_sv(&info.hardwareVersion));
