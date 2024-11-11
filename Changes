@@ -2,6 +2,7 @@ Revision history for Crypt-HSM
 
 {{$NEXT}}
           - Rename slot-description to description
+          - Improve error when loading module fails
 
 0.018     2024-11-02 13:54:48+01:00 Europe/Brussels
           - Rename Crypt::HSM::Key to Crypt::HSM::Object

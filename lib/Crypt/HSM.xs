@@ -13,6 +13,7 @@
 #define dlopen(file, flags) ((void*)win32_dynaload(file))
 #define dlsym(handle, symbol) ((void*)GetProcAddress((HINSTANCE)handle, symbol))
 #define dlclose(handle) (FreeLibrary((HMODULE)handle))
+#define dlerror() "Unknown error"
 #else
 #include "dlfcn.h"
 #endif
@@ -1707,7 +1708,7 @@ CODE:
 
 	RETVAL->handle = dlopen(path, RTLD_LAZY | RTLD_LOCAL);
 	if (!RETVAL->handle)
-		Perl_croak(aTHX_ "Can not open library");
+		Perl_croak(aTHX_ "Can not open library: %s", dlerror());
 
 	CK_RV (*C_GetFunctionList)() = (CK_RV (*)())dlsym(RETVAL->handle, "C_GetFunctionList");
 	if (C_GetFunctionList == NULL)
