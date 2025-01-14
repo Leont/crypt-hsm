@@ -240,7 +240,8 @@ static const map wait_flags = {
 
 static UV S_get_flags(pTHX_ const map table, size_t table_size, SV* input) {
 	if (SvROK(input) && SvTYPE(SvRV(input)) == SVt_PVAV) {
-		UV result = 0, i;
+		size_t i;
+		UV result = 0;
 		AV* array = (AV*)SvRV(input);
 		for (i = 0; i < av_count(array); ++i) {
 			SV** svp = av_fetch(array, i, FALSE);
@@ -1777,7 +1778,8 @@ OUTPUT:
 
 SV* wait_for_event(Crypt::HSM::Provider self, ...)
 CODE:
-	CK_ULONG flags = 0, i;
+	CK_ULONG flags = 0;
+	int i;
 	for (i = 1; i < items; ++i)
 		flags |= get_flags(wait_flags, ST(i));
 
@@ -1929,7 +1931,8 @@ OUTPUT:
 
 bool has_flags(Crypt::HSM::Mechanism self, ...)
 CODE:
-	CK_ULONG flags = 0, i;
+	CK_ULONG flags = 0;
+	int i;
 	for (i = 1; i < items; ++i)
 		flags |= get_flags(mechanism_flags, ST(i));
 	const CK_MECHANISM_INFO* info = get_mechanism_info(self);
@@ -1942,7 +1945,7 @@ void flags(Crypt::HSM::Mechanism self, ..)
 PPCODE:
 	const CK_MECHANISM_INFO* info = get_mechanism_info(self);
 	AV* flags = reverse_flags(mechanism_flags, info->flags);
-	int i;
+	size_t i;
 	for (i = 0; i < av_count(flags); ++i)
 		mXPUSHs(*av_fetch(flags, i, 0));
 	SvREFCNT_dec((SV*)flags);
