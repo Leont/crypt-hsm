@@ -1667,7 +1667,7 @@ static SV* S_new_object(pTHX_ struct Session* session, CK_OBJECT_HANDLE handle) 
 	entry->session = session_refcount_increment(session);
 	entry->handle = handle;
 	SV* object = newSV(0);
-	MAGIC* magic = sv_magicext(newSVrv(object, "Crypt::HSM::Object"), NULL, PERL_MAGIC_ext, NULL, (const char*)entry, 0);
+	sv_magicext(newSVrv(object, "Crypt::HSM::Object"), NULL, PERL_MAGIC_ext, NULL, (const char*)entry, 0);
 	return object;
 }
 #define new_object(session, object) S_new_object(aTHX_ session, object)
