@@ -774,7 +774,7 @@ static const map kdfs = {
 	params->hashAlg = hash;\
 	params->mgf = generator;\
 	if (array_len >= 1)\
-		params->sLen = SvUV((array)[0]);\
+		params->sLen = (CK_ULONG)SvUV((array)[0]);\
 }
 
 #ifndef MIN
@@ -827,7 +827,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 			const char* cb = SvPVbyte(array[0], len);
 			memcpy(params->cb, cb, MIN(len, 16));
 
-			params->ulCounterBits = array_len >= 2 ? SvUV(array[1]) : 128;
+			params->ulCounterBits = array_len >= 2 ? (CK_ULONG)SvUV(array[1]) : 128;
 
 			break;
 		}
@@ -845,7 +845,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 			if (array_len >= 2 && SvOK(array[1]))
 				params->pAAD = get_buffer(array[1], &params->ulAADLen);
 
-			params->ulTagBits = array_len >= 3 ? SvUV(array[2]) : 128;
+			params->ulTagBits = array_len >= 3 ? (CK_ULONG)SvUV(array[2]) : 128;
 
 			break;
 		}
@@ -933,7 +933,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 
 			INIT_PARAMS(CK_OBJECT_HANDLE);
 
-			*params = SvUV(array[0]);
+			*params = (CK_ULONG)SvUV(array[0]);
 
 			break;
 		}
@@ -1301,7 +1301,7 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 		if (SvOK(value)) {
 			switch (entry->type) {
 				case IntAttr:
-					set_intval(current, SvUV(value));
+					set_intval(current, (CK_ULONG)SvUV(value));
 					break;
 				case BoolAttr: {
 					static const char bools[] = { '\0', '\1' };
@@ -1364,7 +1364,7 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 					Newxz(values, av_len(array) + 1, CK_ULONG);
 					SAVEFREEPV(values);
 					for (i = 0; i < av_count(array); ++i)
-						values[i] = SvUV(*av_fetch(array, i, FALSE));
+						values[i] = (CK_ULONG)SvUV(*av_fetch(array, i, FALSE));
 					current->pValue = value;
 					current->ulValueLen = av_len(array) + 1;
 					break;
