@@ -14,21 +14,8 @@ TYPEMAP
 	CK_ULONG                T_U_LONG
 	CK_SLOT_ID              T_U_LONG
 
-	CK_USER_TYPE            T_USER_TYPE
+	CK_USER_TYPE            T_PACKED
 
-	CK_MECHANISM_TYPE       T_MECHANISM_TYPE
-	Attributes              T_ATTRIBUTES
-	Session_flags           T_SESSION_FLAGS
-
-INPUT
-T_USER_TYPE
-	$var = get_user_type($arg)
-
-T_MECHANISM_TYPE
-	$var = get_mechanism_type($arg)
-
-T_ATTRIBUTES
-	$var = get_attributes($arg)
-
-T_SESSION_FLAGS
-	$var = get_flags(session_flags, $arg)
+	CK_MECHANISM_TYPE       T_PACKED
+	Attributes              T_PACKED
+	Session_flags           T_PACKED

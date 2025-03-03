@@ -193,6 +193,7 @@ static const map session_flags = {
 	{ STR_WITH_LEN("serial-session"), CKF_SERIAL_SESSION },
 };
 typedef CK_FLAGS Session_flags;
+#define XS_unpack_Session_flags(input) get_flags(session_flags, input)
 
 static const map mechanism_flags = {
 	{ STR_WITH_LEN("hw"), CKF_HW },
@@ -720,6 +721,7 @@ static const map mechanisms = {
 
 static CK_MECHANISM_TYPE S_get_mechanism_type(pTHX_ SV* input);
 #define get_mechanism_type(input) S_get_mechanism_type(aTHX_ input)
+#define XS_unpack_CK_MECHANISM_TYPE get_mechanism_type
 
 static const map generators = {
 	{ STR_WITH_LEN("sha1"), CKG_MGF1_SHA1 },
@@ -1273,6 +1275,7 @@ static void S_set_intval(pTHX_ CK_ATTRIBUTE* current, CK_ULONG value) {
 #define set_intval(current, value) S_set_intval(aTHX_ current, value)
 
 #define get_attributes(attributes) S_get_attributes(aTHX_ attributes)
+#define XS_unpack_Attributes get_attributes
 static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 	struct Attributes result = { 0, NULL };
 	if (!SvOK(attributes_sv))
@@ -1477,7 +1480,7 @@ static const map user_types = {
 	{ STR_WITH_LEN("user"), CKU_USER },
 	{ STR_WITH_LEN("context-specific"), CKU_CONTEXT_SPECIFIC },
 };
-#define get_user_type(input) map_get(user_types, input, "user type")
+#define XS_unpack_CK_USER_TYPE(input) map_get(user_types, input, "user type")
 
 static SV* S_trimmed_value(pTHX_ const CK_BYTE* ptr, size_t max) {
 	ptrdiff_t last = max - 1;
