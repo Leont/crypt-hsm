@@ -1122,12 +1122,27 @@ static const map profile_ids = {
 };
 #define get_profile_id(input) map_get(profile_ids, input, "profile id")
 
+static const map otp_formats = {
+	{ STR_WITH_LEN("decimal"), CK_OTP_FORMAT_DECIMAL },
+	{ STR_WITH_LEN("hexadecimal"), CK_OTP_FORMAT_HEXADECIMAL },
+	{ STR_WITH_LEN("alphanumeric"), CK_OTP_FORMAT_ALPHANUMERIC },
+	{ STR_WITH_LEN("binary"), CK_OTP_FORMAT_BINARY },
+};
+#define get_otp_format(input) map_get(otp_formats, input, "otp format")
+
+static const map otp_params = {
+	{ STR_WITH_LEN("ignored"), CK_OTP_PARAM_IGNORED },
+	{ STR_WITH_LEN("optional"), CK_OTP_PARAM_OPTIONAL },
+	{ STR_WITH_LEN("mandatory"), CK_OTP_PARAM_MANDATORY },
+};
+#define get_otp_param(input) map_get(otp_params, input, "otp param")
+
 typedef struct Attributes {
 	size_t length;
 	CK_ATTRIBUTE* member;
 } Attributes;
 
-enum Attribute_type { IntAttr, BoolAttr, StrAttr, ByteAttr, ClassAttr, BigintAttr, KeyTypeAttr, CertTypeAttr, CertCatAttr, HardwareTypeAttr, ProfileIdAttr, MechanismAttr, IntArrayAttr, AttrAttr };
+enum Attribute_type { IntAttr, BoolAttr, StrAttr, ByteAttr, ClassAttr, BigintAttr, KeyTypeAttr, CertTypeAttr, CertCatAttr, HardwareTypeAttr, ProfileIdAttr, MechanismAttr, OtpFormatAttr, OtpParamAttr, IntArrayAttr, AttrAttr };
 
 typedef struct { const char* key; size_t length; CK_ULONG value; enum Attribute_type type; } attribute_entry;
 typedef attribute_entry attribute_map[];
@@ -1206,14 +1221,14 @@ static const attribute_map attributes = {
 	{ STR_WITH_LEN("wrap-template"), CKA_WRAP_TEMPLATE, AttrAttr },
 	{ STR_WITH_LEN("unwrap-template"), CKA_UNWRAP_TEMPLATE, AttrAttr },
 	{ STR_WITH_LEN("derive-template"), CKA_DERIVE_TEMPLATE, AttrAttr },
-	{ STR_WITH_LEN("otp-format"), CKA_OTP_FORMAT, IntAttr },
+	{ STR_WITH_LEN("otp-format"), CKA_OTP_FORMAT, OtpFormatAttr },
 	{ STR_WITH_LEN("otp-length"), CKA_OTP_LENGTH, IntAttr },
 	{ STR_WITH_LEN("otp-time-interval"), CKA_OTP_TIME_INTERVAL, IntAttr },
 	{ STR_WITH_LEN("otp-user-friendly-mode"), CKA_OTP_USER_FRIENDLY_MODE, BoolAttr },
-	{ STR_WITH_LEN("otp-challenge-requirement"), CKA_OTP_CHALLENGE_REQUIREMENT, IntAttr },
-	{ STR_WITH_LEN("otp-time-requirement"), CKA_OTP_TIME_REQUIREMENT, IntAttr },
-	{ STR_WITH_LEN("otp-counter-requirement"), CKA_OTP_COUNTER_REQUIREMENT, IntAttr },
-	{ STR_WITH_LEN("otp-pin-requirement"), CKA_OTP_PIN_REQUIREMENT, IntAttr },
+	{ STR_WITH_LEN("otp-challenge-requirement"), CKA_OTP_CHALLENGE_REQUIREMENT, OtpParamAttr },
+	{ STR_WITH_LEN("otp-time-requirement"), CKA_OTP_TIME_REQUIREMENT, OtpParamAttr },
+	{ STR_WITH_LEN("otp-counter-requirement"), CKA_OTP_COUNTER_REQUIREMENT, OtpParamAttr },
+	{ STR_WITH_LEN("otp-pin-requirement"), CKA_OTP_PIN_REQUIREMENT, OtpParamAttr },
 	{ STR_WITH_LEN("otp-counter"), CKA_OTP_COUNTER, ByteAttr },
 	{ STR_WITH_LEN("otp-time"), CKA_OTP_TIME, StrAttr },
 	{ STR_WITH_LEN("otp-user-identifier"), CKA_OTP_USER_IDENTIFIER, StrAttr },
@@ -1378,6 +1393,14 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 					set_intval(current, get_mechanism_type(value));
 					break;
 				}
+				case OtpFormatAttr: {
+					set_intval(current, get_otp_format(value));
+					break;
+				}
+				case OtpParamAttr: {
+					set_intval(current, get_otp_param(value));
+					break;
+				}
 
 				case IntArrayAttr: {
 					if (!SvROK(value) || SvTYPE(SvRV(value)) != SVt_PVAV)
@@ -1478,6 +1501,14 @@ static SV* S_reverse_attribute(pTHX_ CK_ATTRIBUTE* attribute) {
 		case MechanismAttr: {
 			CK_ULONG integer = get_intval(pointer);
 			return entry_to_sv(map_reverse_find(mechanisms, integer));
+		}
+		case OtpFormatAttr: {
+			CK_ULONG integer = get_intval(pointer);
+			return entry_to_sv(map_reverse_find(otp_formats, integer));
+		}
+		case OtpParamAttr: {
+			CK_ULONG integer = get_intval(pointer);
+			return entry_to_sv(map_reverse_find(otp_params, integer));
 		}
 		case IntArrayAttr: {
 			AV* result = newAV();
