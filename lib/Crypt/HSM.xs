@@ -1944,7 +1944,7 @@ OUTPUT:
 	RETVAL
 
 
-void flags(Crypt::HSM::Mechanism self, ..)
+void flags(Crypt::HSM::Mechanism self)
 PPCODE:
 	const CK_MECHANISM_INFO* info = get_mechanism_info(self);
 	AV* flags = reverse_flags(mechanism_flags, info->flags);
