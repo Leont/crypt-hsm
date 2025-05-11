@@ -1142,7 +1142,7 @@ typedef struct Attributes {
 	CK_ATTRIBUTE* member;
 } Attributes;
 
-enum Attribute_type { IntAttr, BoolAttr, StrAttr, ByteAttr, ClassAttr, BigintAttr, KeyTypeAttr, CertTypeAttr, CertCatAttr, HardwareTypeAttr, ProfileIdAttr, MechanismAttr, OtpFormatAttr, OtpParamAttr, IntArrayAttr, AttrAttr };
+enum Attribute_type { IntAttr, BoolAttr, StrAttr, ByteAttr, ClassAttr, BigintAttr, KeyTypeAttr, CertTypeAttr, CertCatAttr, HardwareTypeAttr, ProfileIdAttr, MechanismAttr, OtpFormatAttr, OtpParamAttr, TokenFlagsAttr, IntArrayAttr, AttrAttr };
 
 typedef struct { const char* key; size_t length; CK_ULONG value; enum Attribute_type type; } attribute_entry;
 typedef attribute_entry attribute_map[];
@@ -1215,7 +1215,7 @@ static const attribute_map attributes = {
 	{ STR_WITH_LEN("ec-params"), CKA_EC_PARAMS, BigintAttr },
 	{ STR_WITH_LEN("ec-point"), CKA_EC_POINT, BigintAttr },
 	{ STR_WITH_LEN("secondary-auth"), CKA_SECONDARY_AUTH, BoolAttr },
-	{ STR_WITH_LEN("auth-pin-flags"), CKA_AUTH_PIN_FLAGS, IntAttr },
+	{ STR_WITH_LEN("auth-pin-flags"), CKA_AUTH_PIN_FLAGS, TokenFlagsAttr },
 	{ STR_WITH_LEN("always-authenticate"), CKA_ALWAYS_AUTHENTICATE, BoolAttr },
 	{ STR_WITH_LEN("wrap-with-trusted"), CKA_WRAP_WITH_TRUSTED, BoolAttr },
 	{ STR_WITH_LEN("wrap-template"), CKA_WRAP_TEMPLATE, AttrAttr },
@@ -1401,6 +1401,9 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 					set_intval(current, get_otp_param(value));
 					break;
 				}
+				case TokenFlagsAttr: {
+					Perl_croak(aTHX_ "Can't set token flags");
+				}
 
 				case IntArrayAttr: {
 					if (!SvROK(value) || SvTYPE(SvRV(value)) != SVt_PVAV)
@@ -1509,6 +1512,10 @@ static SV* S_reverse_attribute(pTHX_ CK_ATTRIBUTE* attribute) {
 		case OtpParamAttr: {
 			CK_ULONG integer = get_intval(pointer);
 			return entry_to_sv(map_reverse_find(otp_params, integer));
+		}
+		case TokenFlagsAttr: {
+			CK_ULONG integer = get_intval(pointer);
+			return newRV_noinc((SV*)reverse_flags(token_flags, integer));
 		}
 		case IntArrayAttr: {
 			AV* result = newAV();
