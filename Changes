@@ -1,6 +1,7 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+          - Correctly declare C_GetFunctionList in initialization
 
 0.019     2024-11-12 20:55:41+01:00 Europe/Brussels
           - Rename slot-description to description

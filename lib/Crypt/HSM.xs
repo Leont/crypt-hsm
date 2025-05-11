@@ -1714,7 +1714,7 @@ CODE:
 	if (!RETVAL->handle)
 		Perl_croak(aTHX_ "Can not open library: %s", dlerror());
 
-	CK_RV (*C_GetFunctionList)() = (CK_RV (*)())dlsym(RETVAL->handle, "C_GetFunctionList");
+	CK_C_GetFunctionList C_GetFunctionList = (CK_C_GetFunctionList) dlsym(RETVAL->handle, "C_GetFunctionList");
 	if (C_GetFunctionList == NULL)
 		Perl_croak(aTHX_ "Symbol lookup failed");
 
