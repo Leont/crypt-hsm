@@ -1211,7 +1211,7 @@ static const attribute_map attributes = {
 	{ STR_WITH_LEN("gostr3410-params"), CKA_GOSTR3410_PARAMS, ByteAttr },
 	{ STR_WITH_LEN("gostr3411-params"), CKA_GOSTR3411_PARAMS, ByteAttr },
 	{ STR_WITH_LEN("gost28147-params"), CKA_GOST28147_PARAMS, ByteAttr },
-	{ STR_WITH_LEN("hw-feature-type"), CKA_HW_FEATURE_TYPE, IntAttr },
+	{ STR_WITH_LEN("hw-feature-type"), CKA_HW_FEATURE_TYPE, HardwareTypeAttr },
 	{ STR_WITH_LEN("reset-on-init"), CKA_RESET_ON_INIT, BoolAttr },
 	{ STR_WITH_LEN("has-reset"), CKA_HAS_RESET, BoolAttr },
 	{ STR_WITH_LEN("pixel-x"), CKA_PIXEL_X, IntAttr },
