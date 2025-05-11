@@ -1127,7 +1127,7 @@ typedef struct Attributes {
 	CK_ATTRIBUTE* member;
 } Attributes;
 
-enum Attribute_type { IntAttr, BoolAttr, StrAttr, ByteAttr, ClassAttr, BigintAttr, KeyTypeAttr, CertTypeAttr, CertCatAttr, HardwareTypeAttr, ProfileIdAttr, IntArrayAttr, AttrAttr };
+enum Attribute_type { IntAttr, BoolAttr, StrAttr, ByteAttr, ClassAttr, BigintAttr, KeyTypeAttr, CertTypeAttr, CertCatAttr, HardwareTypeAttr, ProfileIdAttr, MechanismAttr, IntArrayAttr, AttrAttr };
 
 typedef struct { const char* key; size_t length; CK_ULONG value; enum Attribute_type type; } attribute_entry;
 typedef attribute_entry attribute_map[];
@@ -1153,7 +1153,7 @@ static const attribute_map attributes = {
 	{ STR_WITH_LEN("url"), CKA_URL, StrAttr },
 	{ STR_WITH_LEN("hash-of-subject-public-key"), CKA_HASH_OF_SUBJECT_PUBLIC_KEY, ByteAttr },
 	{ STR_WITH_LEN("hash-of-issuer-public-key"), CKA_HASH_OF_ISSUER_PUBLIC_KEY, ByteAttr },
-	{ STR_WITH_LEN("name-hash-algorithm"), CKA_NAME_HASH_ALGORITHM, IntAttr },
+	{ STR_WITH_LEN("name-hash-algorithm"), CKA_NAME_HASH_ALGORITHM, MechanismAttr },
 	{ STR_WITH_LEN("check-value"), CKA_CHECK_VALUE, ByteAttr },
 	{ STR_WITH_LEN("key-type"), CKA_KEY_TYPE, KeyTypeAttr },
 	{ STR_WITH_LEN("subject"), CKA_SUBJECT, ByteAttr },
@@ -1192,7 +1192,7 @@ static const attribute_map attributes = {
 	{ STR_WITH_LEN("local"), CKA_LOCAL, BoolAttr },
 	{ STR_WITH_LEN("never-extractable"), CKA_NEVER_EXTRACTABLE, BoolAttr },
 	{ STR_WITH_LEN("always-sensitive"), CKA_ALWAYS_SENSITIVE, BoolAttr },
-	{ STR_WITH_LEN("key-gen-mechanism"), CKA_KEY_GEN_MECHANISM, IntAttr },
+	{ STR_WITH_LEN("key-gen-mechanism"), CKA_KEY_GEN_MECHANISM, MechanismAttr },
 	{ STR_WITH_LEN("modifiable"), CKA_MODIFIABLE, BoolAttr },
 	{ STR_WITH_LEN("copyable"), CKA_COPYABLE, BoolAttr },
 	{ STR_WITH_LEN("destroyable"), CKA_DESTROYABLE, BoolAttr },
@@ -1236,7 +1236,7 @@ static const attribute_map attributes = {
 	{ STR_WITH_LEN("char-sets"), CKA_CHAR_SETS, StrAttr },
 	{ STR_WITH_LEN("encoding-methods"), CKA_ENCODING_METHODS, StrAttr },
 	{ STR_WITH_LEN("mime-types"), CKA_MIME_TYPES, StrAttr },
-	{ STR_WITH_LEN("mechanism-type"), CKA_MECHANISM_TYPE, IntAttr },
+	{ STR_WITH_LEN("mechanism-type"), CKA_MECHANISM_TYPE, MechanismAttr },
 	{ STR_WITH_LEN("required-cms-attributes"), CKA_REQUIRED_CMS_ATTRIBUTES, ByteAttr },
 	{ STR_WITH_LEN("default-cms-attributes"), CKA_DEFAULT_CMS_ATTRIBUTES, ByteAttr },
 	{ STR_WITH_LEN("supported-cms-attributes"), CKA_SUPPORTED_CMS_ATTRIBUTES, ByteAttr },
@@ -1374,6 +1374,10 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 					set_intval(current, get_profile_id(value));
 					break;
 				}
+				case MechanismAttr: {
+					set_intval(current, get_mechanism_type(value));
+					break;
+				}
 
 				case IntArrayAttr: {
 					if (!SvROK(value) || SvTYPE(SvRV(value)) != SVt_PVAV)
@@ -1470,6 +1474,10 @@ static SV* S_reverse_attribute(pTHX_ CK_ATTRIBUTE* attribute) {
 		case ProfileIdAttr: {
 			CK_ULONG integer = get_intval(pointer);
 			return entry_to_sv(map_reverse_find(profile_ids, integer));
+		}
+		case MechanismAttr: {
+			CK_ULONG integer = get_intval(pointer);
+			return entry_to_sv(map_reverse_find(mechanisms, integer));
 		}
 		case IntArrayAttr: {
 			AV* result = newAV();
