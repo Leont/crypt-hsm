@@ -1246,7 +1246,7 @@ static const attribute_map attributes = {
 	{ STR_WITH_LEN("resolution"), CKA_RESOLUTION, IntAttr },
 	{ STR_WITH_LEN("char-rows"), CKA_CHAR_ROWS, IntAttr },
 	{ STR_WITH_LEN("char-columns"), CKA_CHAR_COLUMNS, IntAttr },
-	{ STR_WITH_LEN("color"), CKA_COLOR, IntAttr },
+	{ STR_WITH_LEN("color"), CKA_COLOR, BoolAttr },
 	{ STR_WITH_LEN("bits-per-pixel"), CKA_BITS_PER_PIXEL, IntAttr },
 	{ STR_WITH_LEN("char-sets"), CKA_CHAR_SETS, StrAttr },
 	{ STR_WITH_LEN("encoding-methods"), CKA_ENCODING_METHODS, StrAttr },
