@@ -1450,7 +1450,7 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 					break;
 				}
 				default:
-					Perl_croak(aTHX_ "HERE");
+					Perl_croak(aTHX_ "Unknown type");
 			}
 		}
 		result.length++;
