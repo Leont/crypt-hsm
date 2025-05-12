@@ -1172,7 +1172,7 @@ static const attribute_map attributes = {
 	{ STR_WITH_LEN("check-value"), CKA_CHECK_VALUE, ByteAttr },
 	{ STR_WITH_LEN("key-type"), CKA_KEY_TYPE, KeyTypeAttr },
 	{ STR_WITH_LEN("subject"), CKA_SUBJECT, ByteAttr },
-	{ STR_WITH_LEN("id"), CKA_ID, BigintAttr },
+	{ STR_WITH_LEN("id"), CKA_ID, ByteAttr },
 	{ STR_WITH_LEN("sensitive"), CKA_SENSITIVE, BoolAttr },
 	{ STR_WITH_LEN("encrypt"), CKA_ENCRYPT, BoolAttr },
 	{ STR_WITH_LEN("decrypt"), CKA_DECRYPT, BoolAttr },
