@@ -1137,12 +1137,20 @@ static const map otp_params = {
 };
 #define get_otp_param(input) map_get(otp_params, input, "otp param")
 
+static const map security_domains = {
+	{ STR_WITH_LEN("unspecified"), CK_SECURITY_DOMAIN_UNSPECIFIED },
+	{ STR_WITH_LEN("manufacturer"), CK_SECURITY_DOMAIN_MANUFACTURER },
+	{ STR_WITH_LEN("operator"), CK_SECURITY_DOMAIN_OPERATOR },
+	{ STR_WITH_LEN("third-party"), CK_SECURITY_DOMAIN_THIRD_PARTY },
+};
+#define get_security_domain(input) map_get(security_domains, input, "security domain")
+
 typedef struct Attributes {
 	size_t length;
 	CK_ATTRIBUTE* member;
 } Attributes;
 
-enum Attribute_type { IntAttr, BoolAttr, StrAttr, ByteAttr, ClassAttr, BigintAttr, KeyTypeAttr, CertTypeAttr, CertCatAttr, HardwareTypeAttr, ProfileIdAttr, MechanismAttr, OtpFormatAttr, OtpParamAttr, TokenFlagsAttr, IntArrayAttr, MechanismArrayAttr, AttrAttr };
+enum Attribute_type { IntAttr, BoolAttr, StrAttr, ByteAttr, ClassAttr, BigintAttr, KeyTypeAttr, CertTypeAttr, CertCatAttr, HardwareTypeAttr, ProfileIdAttr, MechanismAttr, OtpFormatAttr, OtpParamAttr, TokenFlagsAttr, SecurityDomainAttr, IntArrayAttr, MechanismArrayAttr, AttrAttr };
 
 typedef struct { const char* key; size_t length; CK_ULONG value; enum Attribute_type type; } attribute_entry;
 typedef attribute_entry attribute_map[];
@@ -1164,7 +1172,7 @@ static const attribute_map attributes = {
 	{ STR_WITH_LEN("attr-types"), CKA_ATTR_TYPES, ByteAttr },
 	{ STR_WITH_LEN("trusted"), CKA_TRUSTED, BoolAttr },
 	{ STR_WITH_LEN("certificate-category"), CKA_CERTIFICATE_CATEGORY, CertCatAttr },
-	{ STR_WITH_LEN("java-midp-security-domain"), CKA_JAVA_MIDP_SECURITY_DOMAIN, IntAttr },
+	{ STR_WITH_LEN("java-midp-security-domain"), CKA_JAVA_MIDP_SECURITY_DOMAIN, SecurityDomainAttr },
 	{ STR_WITH_LEN("url"), CKA_URL, StrAttr },
 	{ STR_WITH_LEN("hash-of-subject-public-key"), CKA_HASH_OF_SUBJECT_PUBLIC_KEY, ByteAttr },
 	{ STR_WITH_LEN("hash-of-issuer-public-key"), CKA_HASH_OF_ISSUER_PUBLIC_KEY, ByteAttr },
@@ -1404,6 +1412,10 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 				case TokenFlagsAttr: {
 					Perl_croak(aTHX_ "Can't set token flags");
 				}
+				case SecurityDomainAttr: {
+					set_intval(current, get_security_domain(value));
+					break;
+				}
 
 				case IntArrayAttr: {
 					if (!SvROK(value) || SvTYPE(SvRV(value)) != SVt_PVAV)
@@ -1529,6 +1541,10 @@ static SV* S_reverse_attribute(pTHX_ CK_ATTRIBUTE* attribute) {
 		case TokenFlagsAttr: {
 			CK_ULONG integer = get_intval(pointer);
 			return newRV_noinc((SV*)reverse_flags(token_flags, integer));
+		}
+		case SecurityDomainAttr: {
+			CK_ULONG integer = get_intval(pointer);
+			return newRV_noinc((SV*)reverse_flags(security_domains, integer));
 		}
 		case IntArrayAttr: {
 			AV* result = newAV();
