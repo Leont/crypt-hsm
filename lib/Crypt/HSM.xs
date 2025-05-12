@@ -1142,7 +1142,7 @@ typedef struct Attributes {
 	CK_ATTRIBUTE* member;
 } Attributes;
 
-enum Attribute_type { IntAttr, BoolAttr, StrAttr, ByteAttr, ClassAttr, BigintAttr, KeyTypeAttr, CertTypeAttr, CertCatAttr, HardwareTypeAttr, ProfileIdAttr, MechanismAttr, OtpFormatAttr, OtpParamAttr, TokenFlagsAttr, IntArrayAttr, AttrAttr };
+enum Attribute_type { IntAttr, BoolAttr, StrAttr, ByteAttr, ClassAttr, BigintAttr, KeyTypeAttr, CertTypeAttr, CertCatAttr, HardwareTypeAttr, ProfileIdAttr, MechanismAttr, OtpFormatAttr, OtpParamAttr, TokenFlagsAttr, IntArrayAttr, MechanismArrayAttr, AttrAttr };
 
 typedef struct { const char* key; size_t length; CK_ULONG value; enum Attribute_type type; } attribute_entry;
 typedef attribute_entry attribute_map[];
@@ -1255,7 +1255,7 @@ static const attribute_map attributes = {
 	{ STR_WITH_LEN("required-cms-attributes"), CKA_REQUIRED_CMS_ATTRIBUTES, ByteAttr },
 	{ STR_WITH_LEN("default-cms-attributes"), CKA_DEFAULT_CMS_ATTRIBUTES, ByteAttr },
 	{ STR_WITH_LEN("supported-cms-attributes"), CKA_SUPPORTED_CMS_ATTRIBUTES, ByteAttr },
-	{ STR_WITH_LEN("allowed-mechanisms"), CKA_ALLOWED_MECHANISMS, IntArrayAttr },
+	{ STR_WITH_LEN("allowed-mechanisms"), CKA_ALLOWED_MECHANISMS, MechanismArrayAttr },
 	{ STR_WITH_LEN("profile-id"), CKA_PROFILE_ID, ProfileIdAttr },
 	{ STR_WITH_LEN("x2ratchet-bag"), CKA_X2RATCHET_BAG, ByteAttr },
 	{ STR_WITH_LEN("x2ratchet-bagsize"), CKA_X2RATCHET_BAGSIZE, IntAttr },
@@ -1418,6 +1418,19 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 					current->ulValueLen = av_len(array) + 1;
 					break;
 				}
+				case MechanismArrayAttr: {
+					if (!SvROK(value) || SvTYPE(SvRV(value)) != SVt_PVAV)
+						Perl_croak(aTHX_ "Invalid MechanismArray attribute value");
+					AV* array = (AV*) SvRV(value);
+					CK_ULONG* values, i;
+					Newxz(values, av_len(array) + 1, CK_ULONG);
+					SAVEFREEPV(values);
+					for (i = 0; i < av_count(array); ++i)
+						values[i] = (CK_ULONG)get_mechanism_type(*av_fetch(array, i, FALSE));
+					current->pValue = value;
+					current->ulValueLen = av_len(array) + 1;
+					break;
+				}
 				case AttrAttr: {
 					struct Attributes child = get_attributes(value);
 					current->pValue = child.member;
@@ -1523,6 +1536,14 @@ static SV* S_reverse_attribute(pTHX_ CK_ATTRIBUTE* attribute) {
 			size_t elems = length / sizeof(CK_ULONG), i;
 			for (i = 0; i < elems; ++i)
 				av_push(result, newSVuv(values[i]));
+			return newRV_noinc((SV*)result);
+		}
+		case MechanismArrayAttr: {
+			AV* result = newAV();
+			CK_ULONG* values = (CK_ULONG*) pointer;
+			size_t elems = length / sizeof(CK_ULONG), i;
+			for (i = 0; i < elems; ++i)
+				av_push(result, entry_to_sv(map_reverse_find(mechanisms, values[i])));
 			return newRV_noinc((SV*)result);
 		}
 		case AttrAttr: {
