@@ -1797,6 +1797,29 @@ MODULE = Crypt::HSM	 PACKAGE = Crypt::HSM
 
 PROTOTYPES: DISABLED
 
+TYPEMAP: <<END
+	Crypt::HSM::Provider    T_MAGICEXT
+	Crypt::HSM::Slot        T_MAGICEXT
+	Crypt::HSM::Mechanism   T_MAGICEXT
+	Crypt::HSM::Session     T_MAGIC
+	Crypt::HSM::Object      T_MAGIC
+	Crypt::HSM::Stream      T_MAGIC
+	Crypt::HSM::Encrypt     T_MAGIC
+	Crypt::HSM::Decrypt     T_MAGIC
+	Crypt::HSM::Digest      T_MAGIC
+	Crypt::HSM::Sign        T_MAGIC
+	Crypt::HSM::Verify      T_MAGIC
+	CK_BBOOL                T_BOOL
+	CK_ULONG                T_U_LONG
+	CK_SLOT_ID              T_U_LONG
+
+	CK_USER_TYPE            T_PACKED
+
+	CK_MECHANISM_TYPE       T_PACKED
+	Attributes              T_PACKED
+	Session_flags           T_PACKED
+END
+
 BOOT:
 	SV* stream = newSVpvs("Crypt::HSM::Stream");
 	av_push(get_av("Crypt::HSM::Encrypt::ISA", GV_ADD), SvREFCNT_inc(stream));
