@@ -16,7 +16,8 @@ use Crypt::HSM;
 
  my ($key) = $session->find_objects({ label => $label, encrypt => 1 });
  if (not $key) {
-	$key = $session->generate_key('aes-key-gen', { label => $label, sensitive => 1, "value-len" => 32 });
+     my %attrs = (label => $label, sensitive => 1, 'value-len' => 32);
+     $key = $session->generate_key('aes-key-gen', \%attrs);
  }
  my $iv = $session->generate_random(16);
  $session->encrypt('aes-cbc', $key, $plaintext, $iv);
