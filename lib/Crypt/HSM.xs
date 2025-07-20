@@ -1679,10 +1679,10 @@ struct Mechanism {
 	struct Provider* provider;
 	CK_SLOT_ID slot;
 	CK_MECHANISM_TYPE mechanism;
-	CK_MECHANISM_INFO info;
-	bool initialized;
 };
 typedef struct Mechanism* Crypt__HSM__Mechanism;
+
+typedef CK_MECHANISM_INFO* Crypt__HSM__Mechanism__Info;
 
 static int mechanism_dup(pTHX_ MAGIC* magic, CLONE_PARAMS* params) {
 	PERL_UNUSED_VAR(params);
@@ -1726,18 +1726,6 @@ static CK_MECHANISM_TYPE S_get_mechanism_type(pTHX_ SV* input) {
 		return map_get(mechanisms, input, "mechanism");
 	}
 }
-
-static const CK_MECHANISM_INFO* S_get_mechanism_info(pTHX_ struct Mechanism* self) {
-	CK_RV result = CKR_OK;
-	if (!self->initialized) {
-		result = self->provider->funcs->C_GetMechanismInfo(self->slot, self->mechanism, &self->info);
-		if (result != CKR_OK)
-			croak_with("Couldn't get mechanism info", result);
-		self->initialized = 1;
-	}
-	return &self->info;
-}
-#define get_mechanism_info(self) S_get_mechanism_info(aTHX_ self)
 
 struct Session {
 	Refcount refcount;
@@ -1799,26 +1787,27 @@ MODULE = Crypt::HSM	 PACKAGE = Crypt::HSM
 PROTOTYPES: DISABLED
 
 TYPEMAP: <<END
-	Crypt::HSM::Provider    T_MAGICEXT
-	Crypt::HSM::Slot        T_MAGICEXT
-	Crypt::HSM::Mechanism   T_MAGICEXT
-	Crypt::HSM::Session     T_MAGIC
-	Crypt::HSM::Object      T_MAGIC
-	Crypt::HSM::Stream      T_MAGIC
-	Crypt::HSM::Encrypt     T_MAGIC
-	Crypt::HSM::Decrypt     T_MAGIC
-	Crypt::HSM::Digest      T_MAGIC
-	Crypt::HSM::Sign        T_MAGIC
-	Crypt::HSM::Verify      T_MAGIC
-	CK_BBOOL                T_BOOL
-	CK_ULONG                T_U_LONG
-	CK_SLOT_ID              T_U_LONG
+	Crypt::HSM::Provider         T_MAGICEXT
+	Crypt::HSM::Slot             T_MAGICEXT
+	Crypt::HSM::Mechanism        T_MAGICEXT
+	Crypt::HSM::Mechanism::Info  T_OPAQUEOBJ
+	Crypt::HSM::Session          T_MAGIC
+	Crypt::HSM::Object           T_MAGIC
+	Crypt::HSM::Stream           T_MAGIC
+	Crypt::HSM::Encrypt          T_MAGIC
+	Crypt::HSM::Decrypt          T_MAGIC
+	Crypt::HSM::Digest           T_MAGIC
+	Crypt::HSM::Sign             T_MAGIC
+	Crypt::HSM::Verify           T_MAGIC
+	CK_BBOOL                     T_BOOL
+	CK_ULONG                     T_U_LONG
+	CK_SLOT_ID                   T_U_LONG
 
-	CK_USER_TYPE            T_PACKED
+	CK_USER_TYPE                 T_PACKED
 
-	CK_MECHANISM_TYPE       T_PACKED
-	Attributes              T_PACKED
-	Session_flags           T_PACKED
+	CK_MECHANISM_TYPE            T_PACKED
+	Attributes                   T_PACKED
+	Session_flags                T_PACKED
 END
 
 BOOT:
@@ -2047,54 +2036,62 @@ OUTPUT:
 	RETVAL
 
 
-HV* info(Crypt::HSM::Mechanism self)
+Crypt::HSM::Mechanism::Info info(Crypt::HSM::Mechanism self)
 CODE:
-	const CK_MECHANISM_INFO* info = get_mechanism_info(self);
-
-	RETVAL = newHV();
-	hv_stores(RETVAL, "min-key-size", newSVuv(info->ulMinKeySize));
-	hv_stores(RETVAL, "max-key-size", newSVuv(info->ulMaxKeySize));
-	hv_stores(RETVAL, "flags", newRV_noinc((SV*)reverse_flags(mechanism_flags, info->flags)));
+	RETVAL = safemalloc(sizeof(CK_MECHANISM_INFO));
+	CK_RV result = self->provider->funcs->C_GetMechanismInfo(self->slot, self->mechanism, RETVAL);
+	if (result != CKR_OK) {
+		Safefree(RETVAL);
+		croak_with("Couldn't get mechanism info", result);
+	}
 OUTPUT:
 	RETVAL
 
 
-bool has_flags(Crypt::HSM::Mechanism self, ...)
+MODULE = Crypt::HSM  PACKAGE = Crypt::HSM::Mechanism::Info
+
+
+HV* hash(Crypt::HSM::Mechanism::Info self)
+CODE:
+	RETVAL = newHV();
+	hv_stores(RETVAL, "min-key-size", newSVuv(self->ulMinKeySize));
+	hv_stores(RETVAL, "max-key-size", newSVuv(self->ulMaxKeySize));
+	hv_stores(RETVAL, "flags", newRV_noinc((SV*)reverse_flags(mechanism_flags, self->flags)));
+OUTPUT:
+	RETVAL
+
+
+bool has_flags(Crypt::HSM::Mechanism::Info self, ...)
 CODE:
 	CK_ULONG flags = 0;
 	int i;
 	for (i = 1; i < items; ++i)
 		flags |= get_flags(mechanism_flags, ST(i));
-	const CK_MECHANISM_INFO* info = get_mechanism_info(self);
-	RETVAL = (info->flags & flags) == flags;
+	RETVAL = (self->flags & flags) == flags;
 OUTPUT:
 	RETVAL
 
 
-void flags(Crypt::HSM::Mechanism self)
+void flags(Crypt::HSM::Mechanism::Info self)
 PPCODE:
-	const CK_MECHANISM_INFO* info = get_mechanism_info(self);
-
 	CK_ULONG i;
 	for (i = 0; i < CHAR_BIT * sizeof(CK_ULONG); ++i) {
 		CK_ULONG right = 1ul << i;
-		if (info->flags & right)
+		if (self->flags & right)
 			mXPUSHs(entry_to_sv(map_reverse_find(mechanism_flags, right)));
 	}
 
 
-CK_ULONG min_key_size(Crypt::HSM::Mechanism self)
+CK_ULONG min_key_size(Crypt::HSM::Mechanism::Info self)
 CODE:
-	const CK_MECHANISM_INFO* info = get_mechanism_info(self);
-	RETVAL = info->ulMinKeySize;
+	RETVAL = self->ulMinKeySize;
 OUTPUT:
 	RETVAL
 
 
-CK_ULONG max_key_size(Crypt::HSM::Mechanism self)
+CK_ULONG max_key_size(Crypt::HSM::Mechanism::Info self)
 CODE:
-	const CK_MECHANISM_INFO* info = get_mechanism_info(self);
-	RETVAL = info->ulMaxKeySize;
+	RETVAL = self->ulMaxKeySize;
 OUTPUT:
 	RETVAL
 

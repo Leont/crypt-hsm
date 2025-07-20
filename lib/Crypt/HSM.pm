@@ -6,6 +6,9 @@ use warnings;
 use XSLoader;
 XSLoader::load(__PACKAGE__, __PACKAGE__->VERSION);
 
+# Pure-perl backwards compatibility methods
+use Crypt::HSM::Mechanism;
+
 1;
 
 #ABSTRACT: A PKCS11 interface for Perl
