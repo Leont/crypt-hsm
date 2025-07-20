@@ -1,6 +1,7 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+          - Fix off-by-one in PSS argument handling
           - Add missing elipses to generate_key and generate_keypair
           - Speed up mechanism type lookup for mechanism
 

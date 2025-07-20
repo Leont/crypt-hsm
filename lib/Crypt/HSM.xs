@@ -872,7 +872,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 			if (array_len < 2)
 				croak("No hash given for rsa-pkcs-pss");
 			CK_MECHANISM_TYPE hash = get_mechanism_type(array[0]);
-			CK_RSA_PKCS_MGF_TYPE generator = map_get(generators, array[2], "generator");
+			CK_RSA_PKCS_MGF_TYPE generator = map_get(generators, array[1], "generator");
 			specialize_pss(&result, hash, generator, array + 2, array_len - 2);
 			break;
 		}
