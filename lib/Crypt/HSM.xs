@@ -2039,10 +2039,10 @@ CODE:
 MODULE = Crypt::HSM  PACKAGE = Crypt::HSM::Mechanism
 
 
-const char* name(Crypt::HSM::Mechanism self)
+SV* name(Crypt::HSM::Mechanism self)
 CODE:
 	const entry* item = map_reverse_find(mechanisms, self->mechanism);
-	RETVAL = item ? item->key : NULL;
+	RETVAL = item ? newSVpvn(item->key, item->length) : newSV(0);
 OUTPUT:
 	RETVAL
 
