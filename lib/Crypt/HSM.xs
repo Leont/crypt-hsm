@@ -2074,11 +2074,13 @@ OUTPUT:
 void flags(Crypt::HSM::Mechanism self)
 PPCODE:
 	const CK_MECHANISM_INFO* info = get_mechanism_info(self);
-	AV* flags = reverse_flags(mechanism_flags, info->flags);
-	size_t i;
-	for (i = 0; i < av_count(flags); ++i)
-		mXPUSHs(*av_fetch(flags, i, 0));
-	SvREFCNT_dec((SV*)flags);
+
+	CK_ULONG i;
+	for (i = 0; i < CHAR_BIT * sizeof(CK_ULONG); ++i) {
+		CK_ULONG right = 1ul << i;
+		if (info->flags & right)
+			mXPUSHs(entry_to_sv(map_reverse_find(mechanism_flags, right)));
+	}
 
 
 CK_ULONG min_key_size(Crypt::HSM::Mechanism self)
