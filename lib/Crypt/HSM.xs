@@ -1,4 +1,5 @@
 #define PERL_NO_GET_CONTEXT
+#define PERL_WANT_VARARGS
 #include "EXTERN.h"
 #include "perl.h"
 #include "XSUB.h"
@@ -36,7 +37,7 @@ static CK_ULONG S_map_get(pTHX_ const map table, size_t table_size, SV* input, c
 	const char* name = SvPVutf8(input, name_length);
 	const entry* item = map_find(table, table_size, name, name_length);
 	if (item == NULL)
-		Perl_croak(aTHX_ "No such %s '%s'", type, name);
+		croak("No such %s '%s'", type, name);
 	return item->value;
 }
 #define map_get(table, name, type) S_map_get(aTHX_ table, sizeof table / sizeof *table, name, type)
@@ -156,7 +157,7 @@ static const map errors = {
 static void S_croak_with(pTHX_ const char* message, CK_RV result) {
 	const entry* item = map_reverse_find(errors, result);
 	const char* reason = item ? item->key : "unknown";
-	Perl_croak(aTHX_ "%s: %s", message, reason);
+	croak("%s: %s", message, reason);
 }
 #define croak_with(message, result) S_croak_with(aTHX_ message, result)
 
@@ -815,13 +816,13 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 		case CKM_AES_CFB128:
 		case CKM_AES_OFB:
 			if (array_len < 1)
-				Perl_croak(aTHX_ "No IV given for cipher needing it");
+				croak("No IV given for cipher needing it");
 			result.pParameter = get_buffer(array[0], &result.ulParameterLen);
 			break;
 
 		case CKM_AES_CTR: {
 			if (array_len < 1)
-				Perl_croak(aTHX_ "No IV given for AES CTR");
+				croak("No IV given for AES CTR");
 
 			INIT_PARAMS(CK_AES_CTR_PARAMS);
 
@@ -836,7 +837,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 
 		case CKM_AES_GCM: {
 			if (array_len < 1)
-				Perl_croak(aTHX_ "No IV given for AES-GCM");
+				croak("No IV given for AES-GCM");
 
 			INIT_PARAMS(CK_GCM_PARAMS);
 
@@ -855,7 +856,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 		case CKM_CHACHA20_POLY1305:
 		case CKM_SALSA20_POLY1305: {
 			if (array_len < 1)
-				Perl_croak(aTHX_ "No nonce given for chacha20/salsa20");
+				croak("No nonce given for chacha20/salsa20");
 
 			INIT_PARAMS(CK_SALSA20_CHACHA20_POLY1305_PARAMS);
 
@@ -869,7 +870,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 
 		case CKM_RSA_PKCS_PSS: {
 			if (array_len < 2)
-				Perl_croak(aTHX_ "No hash given for rsa-pkcs-pss");
+				croak("No hash given for rsa-pkcs-pss");
 			CK_MECHANISM_TYPE hash = get_mechanism_type(array[0]);
 			CK_RSA_PKCS_MGF_TYPE generator = map_get(generators, array[2], "generator");
 			specialize_pss(&result, hash, generator, array + 2, array_len - 2);
@@ -891,7 +892,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 		case CKM_ECDH1_DERIVE:
 		case CKM_ECDH1_COFACTOR_DERIVE: {
 			if (array_len < 1)
-				Perl_croak(aTHX_ "No public key given for ECDH derivation");
+				croak("No public key given for ECDH derivation");
 
 			INIT_PARAMS(CK_ECDH1_DERIVE_PARAMS);
 
@@ -907,7 +908,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 
 		case CKM_DH_PKCS_DERIVE: {
 			if (array_len < 1)
-				Perl_croak(aTHX_ "Insufficient parameters for derivation");
+				croak("Insufficient parameters for derivation");
 
 			result.pParameter = get_buffer(array[0], &result.ulParameterLen);
 
@@ -920,7 +921,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 		case CKM_CONCATENATE_BASE_AND_DATA:
 		case CKM_AES_ECB_ENCRYPT_DATA: {
 			if (array_len < 1)
-				Perl_croak(aTHX_ "Insufficient parameters for derivation");
+				croak("Insufficient parameters for derivation");
 
 			INIT_PARAMS(CK_KEY_DERIVATION_STRING_DATA);
 
@@ -931,7 +932,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 
 		case CKM_CONCATENATE_BASE_AND_KEY: {
 			if (array_len < 1)
-				Perl_croak(aTHX_ "Insufficient parameters for derivation");
+				croak("Insufficient parameters for derivation");
 
 			INIT_PARAMS(CK_OBJECT_HANDLE);
 
@@ -943,7 +944,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 		case CKM_DES_CBC_ENCRYPT_DATA:
 		case CKM_DES3_CBC_ENCRYPT_DATA: {
 			if (array_len < 2)
-				Perl_croak(aTHX_ "Insufficient parameters for derivation");
+				croak("Insufficient parameters for derivation");
 
 			INIT_PARAMS(CK_DES_CBC_ENCRYPT_DATA_PARAMS);
 
@@ -957,7 +958,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 
 		case CKM_AES_CBC_ENCRYPT_DATA: {
 			if (array_len < 2)
-				Perl_croak(aTHX_ "Insufficient parameters for derivation");
+				croak("Insufficient parameters for derivation");
 
 			INIT_PARAMS(CK_AES_CBC_ENCRYPT_DATA_PARAMS);
 
@@ -971,7 +972,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 
 		case CKM_RSA_PKCS_OAEP: {
 			if (array_len < 2)
-				Perl_croak(aTHX_ "Insufficient parameters for rsa-pkcs-oaep");
+				croak("Insufficient parameters for rsa-pkcs-oaep");
 
 			INIT_PARAMS(CK_RSA_PKCS_OAEP_PARAMS);
 
@@ -1317,7 +1318,7 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 		return result;
 
 	if (!SvROK(attributes_sv) || SvTYPE(SvRV(attributes_sv)) != SVt_PVHV)
-		Perl_croak(aTHX_ "Invalid attributes parameter");
+		croak("Invalid attributes parameter");
 	HV* attributes = (HV*) SvRV(attributes_sv);
 	Newxz(result.member, HvUSEDKEYS(attributes), CK_ATTRIBUTE);
 	SAVEFREEPV(result.member);
@@ -1330,7 +1331,7 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 		const char* name = hv_iterkey(item, &name_length);
 		const attribute_entry* entry = get_attribute_entry(name, name_length);
 		if (entry == NULL)
-			Perl_croak(aTHX_ "No such attribute '%s'", name);
+			croak("No such attribute '%s'", name);
 
 		CK_ATTRIBUTE* current = &result.member[result.length];
 
@@ -1356,7 +1357,7 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 				case BigintAttr:
 					if (SvROK(value)) {
 						if (SvTYPE(SvRV(value)) != SVt_PVAV)
-							Perl_croak(aTHX_ "Invalid Bigint attribute value");
+							croak("Invalid Bigint attribute value");
 						AV* input = (AV*) SvRV(value);
 						char* array;
 						Newxz(array, av_len(input) + 1, char);
@@ -1410,7 +1411,7 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 					break;
 				}
 				case TokenFlagsAttr: {
-					Perl_croak(aTHX_ "Can't set token flags");
+					croak("Can't set token flags");
 				}
 				case SecurityDomainAttr: {
 					set_intval(current, get_security_domain(value));
@@ -1419,7 +1420,7 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 
 				case IntArrayAttr: {
 					if (!SvROK(value) || SvTYPE(SvRV(value)) != SVt_PVAV)
-						Perl_croak(aTHX_ "Invalid IntArray attribute value");
+						croak("Invalid IntArray attribute value");
 					AV* array = (AV*) SvRV(value);
 					CK_ULONG* values, i;
 					Newxz(values, av_len(array) + 1, CK_ULONG);
@@ -1432,7 +1433,7 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 				}
 				case MechanismArrayAttr: {
 					if (!SvROK(value) || SvTYPE(SvRV(value)) != SVt_PVAV)
-						Perl_croak(aTHX_ "Invalid MechanismArray attribute value");
+						croak("Invalid MechanismArray attribute value");
 					AV* array = (AV*) SvRV(value);
 					CK_ULONG* values, i;
 					Newxz(values, av_len(array) + 1, CK_ULONG);
@@ -1450,7 +1451,7 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 					break;
 				}
 				default:
-					Perl_croak(aTHX_ "Unknown type");
+					croak("Unknown type");
 			}
 		}
 		result.length++;
@@ -1574,7 +1575,7 @@ static SV* S_reverse_attribute(pTHX_ CK_ATTRIBUTE* attribute) {
 			return newRV_noinc((SV*)result);
 		}
 		default:
-			Perl_croak(aTHX_ "Unknown type");
+			croak("Unknown type");
 	}
 }
 
@@ -1718,7 +1719,7 @@ static CK_MECHANISM_TYPE S_get_mechanism_type(pTHX_ SV* input) {
 	if (SvROK(input) && sv_derived_from(input, "Crypt::HSM::Mechanism")) {
 		MAGIC* magic = mg_findext(SvRV(input), PERL_MAGIC_ext, &Crypt__HSM__Mechanism_magic);
 		if (!magic)
-			Perl_croak(aTHX_ "No magic found on Crypt::HSM::Mechanism object");
+			croak("No magic found on Crypt::HSM::Mechanism object");
 		struct Mechanism* mech = (struct Mechanism*) magic->mg_ptr;
 		return mech->mechanism;
 	} else {
@@ -1838,11 +1839,11 @@ CODE:
 
 	RETVAL->handle = dlopen(path, RTLD_LAZY | RTLD_LOCAL);
 	if (!RETVAL->handle)
-		Perl_croak(aTHX_ "Can not open library: %s", dlerror());
+		croak("Can not open library: %s", dlerror());
 
 	CK_C_GetFunctionList C_GetFunctionList = (CK_C_GetFunctionList) dlsym(RETVAL->handle, "C_GetFunctionList");
 	if (C_GetFunctionList == NULL)
-		Perl_croak(aTHX_ "Symbol lookup failed");
+		croak("Symbol lookup failed");
 
 	CK_RV rc = C_GetFunctionList(&RETVAL->funcs);
 	if (rc != CKR_OK)
@@ -2519,7 +2520,7 @@ CODE:
 	const char* name = SvPVutf8(attribute_name, name_length);
 	const attribute_entry* item = get_attribute_entry(name, name_length);
 	if (item == NULL)
-		Perl_croak(aTHX_ "No such attribute %s", name);
+		croak("No such attribute %s", name);
 	attribute.type = item->value;
 
 	CK_RV result = self->session->provider->funcs->C_GetAttributeValue(self->session->handle, self->handle, &attribute, 1);
@@ -2552,7 +2553,7 @@ CODE:
 		const char* name = SvPVutf8(*av_fetch(attributes_av, i, FALSE), name_length);
 		const attribute_entry* item = get_attribute_entry(name, name_length);
 		if (item == NULL)
-			Perl_croak(aTHX_ "No such attribute %s", name);
+			croak("No such attribute %s", name);
 		attributes.member[i].type = item->value;
 	}
 
