@@ -2206,7 +2206,7 @@ PPCODE:
 	self->provider->funcs->C_FindObjectsFinal(self->handle);
 
 
-void generate_keypair(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Attributes publicKeyTemplate, Attributes privateKeyTemplate)
+void generate_keypair(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Attributes publicKeyTemplate, Attributes privateKeyTemplate, ...)
 PPCODE:
 	CK_OBJECT_HANDLE publicKey;
 	CK_OBJECT_HANDLE privateKey;
@@ -2220,7 +2220,7 @@ PPCODE:
 	mXPUSHs(new_object(self, privateKey));
 
 
-SV* generate_key(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Attributes keyTemplate)
+SV* generate_key(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Attributes keyTemplate, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 3);
 	CK_OBJECT_HANDLE handle;
