@@ -1101,7 +1101,7 @@ static const map certificate_categories = {
 	{ STR_WITH_LEN("authority"), CK_CERTIFICATE_CATEGORY_AUTHORITY },
 	{ STR_WITH_LEN("other-entity"), CK_CERTIFICATE_CATEGORY_OTHER_ENTITY },
 };
-#define get_cert_cat(input) map_get(certificate_categories, input, "cert type")
+#define get_cert_cat(input) map_get(certificate_categories, input, "cert category")
 
 static const map hardware_types = {
 	{ STR_WITH_LEN("monotonic-counter"), CKH_MONOTONIC_COUNTER },
