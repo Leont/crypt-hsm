@@ -1,6 +1,8 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+
+0.021     2025-07-22 22:30:38+02:00 Europe/Brussels
           - Split Mechanism::Info object out of Mechanism
           - Fix off-by-one in PSS argument handling
           - Add missing elipses to generate_key and generate_keypair
