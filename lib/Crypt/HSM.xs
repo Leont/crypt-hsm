@@ -1820,21 +1820,20 @@ BOOT:
 	SvREFCNT_dec(stream);
 
 
-Crypt::HSM::Provider load(SV* class, const char* path)
+Crypt::HSM::Provider load(class, const char* path)
 CODE:
-	PERL_UNUSED_VAR(class);
-	RETVAL = (struct Provider*) PerlMemShared_calloc(1, sizeof(struct Provider));
-	refcount_init(&RETVAL->refcount, 1);
+	void* handle;
+	CK_FUNCTION_LIST* funcs;
 
-	RETVAL->handle = dlopen(path, RTLD_LAZY | RTLD_LOCAL);
-	if (!RETVAL->handle)
+	handle = dlopen(path, RTLD_LAZY | RTLD_LOCAL);
+	if (!handle)
 		croak("Can not open library: %s", dlerror());
 
-	CK_C_GetFunctionList C_GetFunctionList = (CK_C_GetFunctionList) dlsym(RETVAL->handle, "C_GetFunctionList");
+	CK_C_GetFunctionList C_GetFunctionList = (CK_C_GetFunctionList) dlsym(handle, "C_GetFunctionList");
 	if (C_GetFunctionList == NULL)
 		croak("Symbol lookup failed");
 
-	CK_RV rc = C_GetFunctionList(&RETVAL->funcs);
+	CK_RV rc = C_GetFunctionList(&funcs);
 	if (rc != CKR_OK)
 		croak_with("Call to C_GetFunctionList failed", rc);
 #if defined(USE_THREADS) || defined(__linux__)
@@ -1842,9 +1841,14 @@ CODE:
 #else
 	CK_C_INITIALIZE_ARGS init_args = { NULL, NULL, NULL, NULL, CKF_LIBRARY_CANT_CREATE_OS_THREADS, NULL };
 #endif
-	rc = RETVAL->funcs->C_Initialize(&init_args);
+	rc = funcs->C_Initialize(&init_args);
 	if (rc != CKR_OK)
 		croak_with("Call to C_Initialize failed", rc);
+
+	RETVAL = (struct Provider*) PerlMemShared_calloc(1, sizeof(struct Provider));
+	refcount_init(&RETVAL->refcount, 1);
+	RETVAL->handle = handle;
+	RETVAL->funcs = funcs;
 OUTPUT:
 	RETVAL
 
@@ -1970,14 +1974,17 @@ OUTPUT:
 Crypt::HSM::Session open_session(Crypt::HSM::Slot self, Session_flags flags = 0)
 CODE:
 	CK_NOTIFY Notify = NULL;
-	Newxz(RETVAL, 1, struct Session);
-	refcount_init(&RETVAL->refcount, 1);
-	RETVAL->slot = self->slot;
-	RETVAL->provider = provider_refcount_increment(self->provider);
+	CK_SESSION_HANDLE handle;
 
-	CK_RV result = self->provider->funcs->C_OpenSession(self->slot, flags | CKF_SERIAL_SESSION, NULL, Notify, &RETVAL->handle);
+	CK_RV result = self->provider->funcs->C_OpenSession(self->slot, flags | CKF_SERIAL_SESSION, NULL, Notify, &handle);
 	if (result != CKR_OK)
 		croak_with("Could not open session", result);
+
+	Newxz(RETVAL, 1, struct Session);
+	refcount_init(&RETVAL->refcount, 1);
+	RETVAL->provider = provider_refcount_increment(self->provider);
+	RETVAL->slot = self->slot;
+	RETVAL->handle = handle;
 OUTPUT:
 	RETVAL
 
@@ -2246,8 +2253,10 @@ CODE:
 	SvPOK_only(RETVAL);
 	result = self->provider->funcs->C_Encrypt(self->handle, dataPV, dataLen, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &encryptedDataLen);
 	SvCUR(RETVAL) = encryptedDataLen;
-	if (result != CKR_OK)
+	if (result != CKR_OK) {
+		SvREFCNT_dec(RETVAL);
 		croak_with("Couldn't encrypt", result);
+	}
 OUTPUT:
 	RETVAL
 
@@ -2282,9 +2291,11 @@ CODE:
 	RETVAL = newSV(decryptedDataLen);
 	SvPOK_only(RETVAL);
 	result = self->provider->funcs->C_Decrypt(self->handle, dataPV, dataLen, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &decryptedDataLen);
-	SvCUR(RETVAL) = decryptedDataLen;
-	if (result != CKR_OK)
+	if (result != CKR_OK) {
+		SvREFCNT_dec(RETVAL);
 		croak_with("Couldn't decrypt", result);
+	}
+	SvCUR(RETVAL) = decryptedDataLen;
 OUTPUT:
 	RETVAL
 
@@ -2319,9 +2330,11 @@ CODE:
 	RETVAL = newSV(signedDataLen);
 	SvPOK_only(RETVAL);
 	result = self->provider->funcs->C_Sign(self->handle, dataPV, dataLen, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &signedDataLen);
-	SvCUR(RETVAL) = signedDataLen;
-	if (result != CKR_OK)
+	if (result != CKR_OK) {
+		SvREFCNT_dec(RETVAL);
 		croak_with("Couldn't sign", result);
+	}
+	SvCUR(RETVAL) = signedDataLen;
 OUTPUT:
 	RETVAL
 
@@ -2393,9 +2406,11 @@ CODE:
 	RETVAL = newSV(digestedDataLen);
 	SvPOK_only(RETVAL);
 	result = self->provider->funcs->C_Digest(self->handle, dataPV, dataLen, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &digestedDataLen);
-	SvCUR(RETVAL) = digestedDataLen;
-	if (result != CKR_OK)
+	if (result != CKR_OK) {
+		SvREFCNT_dec(RETVAL);
 		croak_with("Couldn't digest", result);
+	}
+	SvCUR(RETVAL) = digestedDataLen;
 OUTPUT:
 	RETVAL
 
@@ -2424,9 +2439,11 @@ CODE:
 	RETVAL = newSV(length);
 	SvPOK_only(RETVAL);
 	result = self->provider->funcs->C_WrapKey(self->handle, &mechanism, wrappingKey->handle, key->handle, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &length);
-	SvCUR(RETVAL) = length;
-	if (result != CKR_OK)
+	if (result != CKR_OK) {
+		SvREFCNT_dec(RETVAL);
 		croak_with("Couldn't wrap", result);
+	}
+	SvCUR(RETVAL) = length;
 OUTPUT:
 	RETVAL
 
@@ -2603,9 +2620,11 @@ CODE:
 	SvPOK_only(RETVAL);
 	if (length) {
 		result = self->session->provider->funcs->C_GetOperationState(self->session->handle, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &length);
-		SvCUR(RETVAL) = length;
-		if (result != CKR_OK)
+		if (result != CKR_OK) {
+			SvREFCNT_dec(RETVAL);
 			croak_with("Couldn't get operation state", result);
+		}
+		SvCUR(RETVAL) = length;
 	}
 OUTPUT:
 	RETVAL
@@ -2643,9 +2662,11 @@ CODE:
 	SvPOK_only(RETVAL);
 	if (encryptedDataLen) {
 		result = self->session->provider->funcs->C_EncryptUpdate(self->session->handle, dataPV, dataLen, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &encryptedDataLen);
-		SvCUR(RETVAL) = encryptedDataLen;
-		if (result != CKR_OK)
+		if (result != CKR_OK) {
+			SvREFCNT_dec(RETVAL);
 			croak_with("Couldn't encrypt", result);
+		}
+		SvCUR(RETVAL) = encryptedDataLen;
 	}
 OUTPUT:
 	RETVAL
@@ -2661,9 +2682,11 @@ CODE:
 	RETVAL = newSV(encryptedDataLen + 1);
 	SvPOK_only(RETVAL);
 	result = self->session->provider->funcs->C_EncryptFinal(self->session->handle, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &encryptedDataLen);
-	SvCUR(RETVAL) = encryptedDataLen;
-	if (result != CKR_OK)
+	if (result != CKR_OK) {
+		SvREFCNT_dec(RETVAL);
 		croak_with("Couldn't encrypt", result);
+	}
+	SvCUR(RETVAL) = encryptedDataLen;
 OUTPUT:
 	RETVAL
 
@@ -2683,9 +2706,11 @@ CODE:
 	SvPOK_only(RETVAL);
 	if (decryptedDataLen) {
 		result = self->session->provider->funcs->C_DecryptUpdate(self->session->handle, dataPV, dataLen, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &decryptedDataLen);
-		SvCUR(RETVAL) = decryptedDataLen;
-		if (result != CKR_OK)
+		if (result != CKR_OK) {
+			SvREFCNT_dec(RETVAL);
 			croak_with("Couldn't decrypt", result);
+		}
+		SvCUR(RETVAL) = decryptedDataLen;
 	}
 OUTPUT:
 	RETVAL
@@ -2701,9 +2726,11 @@ CODE:
 	RETVAL = newSV(decryptedDataLen + 1);
 	SvPOK_only(RETVAL);
 	result = self->session->provider->funcs->C_DecryptFinal(self->session->handle, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &decryptedDataLen);
-	SvCUR(RETVAL) = decryptedDataLen;
-	if (result != CKR_OK)
+	if (result != CKR_OK) {
+		SvREFCNT_dec(RETVAL);
 		croak_with("Couldn't decrypt", result);
+	}
+	SvCUR(RETVAL) = decryptedDataLen;
 OUTPUT:
 	RETVAL
 
@@ -2738,9 +2765,11 @@ CODE:
 	RETVAL = newSV(digestedDataLen + 1);
 	SvPOK_only(RETVAL);
 	result = self->session->provider->funcs->C_DigestFinal(self->session->handle, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &digestedDataLen);
-	SvCUR(RETVAL) = digestedDataLen;
-	if (result != CKR_OK)
+	if (result != CKR_OK) {
+		SvREFCNT_dec(RETVAL);
 		croak_with("Couldn't digest", result);
+	}
+	SvCUR(RETVAL) = digestedDataLen;
 OUTPUT:
 	RETVAL
 
@@ -2767,9 +2796,11 @@ CODE:
 	RETVAL = newSV(signedDataLen + 1);
 	SvPOK_only(RETVAL);
 	result = self->session->provider->funcs->C_SignFinal(self->session->handle, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &signedDataLen);
-	SvCUR(RETVAL) = signedDataLen;
-	if (result != CKR_OK)
+	if (result != CKR_OK) {
+		SvREFCNT_dec(RETVAL);
 		croak_with("Couldn't sign", result);
+	}
+	SvCUR(RETVAL) = signedDataLen;
 OUTPUT:
 	RETVAL
 
