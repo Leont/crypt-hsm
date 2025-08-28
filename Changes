@@ -1,6 +1,7 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+          - Return correct types in open_* methods
 
 0.021     2025-07-22 22:30:38+02:00 Europe/Brussels
           - Split Mechanism::Info object out of Mechanism

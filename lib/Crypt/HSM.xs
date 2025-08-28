@@ -1814,9 +1814,9 @@ BOOT:
 	SV* stream = newSVpvs("Crypt::HSM::Stream");
 	av_push(get_av("Crypt::HSM::Encrypt::ISA", GV_ADD), SvREFCNT_inc(stream));
 	av_push(get_av("Crypt::HSM::Decrypt::ISA", GV_ADD), SvREFCNT_inc(stream));
-	av_push(get_av("Crypt::HSM::Digest::ISA", GV_ADD), SvREFCNT_inc(stream));
-	av_push(get_av("Crypt::HSM::Sign::ISA", GV_ADD), SvREFCNT_inc(stream));
-	av_push(get_av("Crypt::HSM::Verify::ISA", GV_ADD), SvREFCNT_inc(stream));
+	av_push(get_av("Crypt::HSM::Digest::ISA" , GV_ADD), SvREFCNT_inc(stream));
+	av_push(get_av("Crypt::HSM::Sign::ISA"   , GV_ADD), SvREFCNT_inc(stream));
+	av_push(get_av("Crypt::HSM::Verify::ISA" , GV_ADD), SvREFCNT_inc(stream));
 	SvREFCNT_dec(stream);
 
 
@@ -2289,7 +2289,7 @@ OUTPUT:
 	RETVAL
 
 
-Crypt::HSM::Encrypt open_decrypt(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, ...)
+Crypt::HSM::Decrypt open_decrypt(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 3);
 	CK_RV result = self->provider->funcs->C_DecryptInit(self->handle, &mechanism, key->handle);
@@ -2326,7 +2326,7 @@ OUTPUT:
 	RETVAL
 
 
-Crypt::HSM::Encrypt open_sign(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, ...)
+Crypt::HSM::Sign open_sign(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 3);
 	CK_RV result = self->provider->funcs->C_SignInit(self->handle, &mechanism, key->handle);
@@ -2363,7 +2363,7 @@ OUTPUT:
 	RETVAL
 
 
-Crypt::HSM::Encrypt open_verify(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, ...)
+Crypt::HSM::Verify open_verify(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 3);
 	CK_RV result = self->provider->funcs->C_VerifyInit(self->handle, &mechanism, key->handle);
@@ -2400,7 +2400,7 @@ OUTPUT:
 	RETVAL
 
 
-Crypt::HSM::Encrypt open_digest(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, ...)
+Crypt::HSM::Digest open_digest(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 3);
 	CK_RV result = self->provider->funcs->C_DigestInit(self->handle, &mechanism);
