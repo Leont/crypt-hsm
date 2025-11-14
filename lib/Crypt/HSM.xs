@@ -1784,7 +1784,7 @@ typedef struct Stream* Crypt__HSM__Verify;
 
 MODULE = Crypt::HSM	 PACKAGE = Crypt::HSM
 
-PROTOTYPES: DISABLED
+PROTOTYPES: DISABLE
 
 TYPEMAP: <<END
 	Crypt::HSM::Provider         T_MAGICEXT
