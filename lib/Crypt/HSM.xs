@@ -2530,7 +2530,7 @@ OUTPUT:
 
 SV* get_attribute(Crypt::HSM::Object self, SV* attribute_name)
 CODE:
-	CK_ATTRIBUTE attribute;
+	CK_ATTRIBUTE attribute = { 0 };
 
 	STRLEN name_length;
 	const char* name = SvPVutf8(attribute_name, name_length);
