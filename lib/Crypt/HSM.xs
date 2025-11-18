@@ -2123,7 +2123,7 @@ CODE:
 
 	RETVAL = newHV();
 	hv_stores(RETVAL, "slot-id", newSVuv(info.slotID));
-	hv_stores(RETVAL, "state", newRV_noinc((SV*)reverse_flags(state_flags, info.state)));
+	hv_stores(RETVAL, "state", entry_to_sv(map_reverse_find(state_flags, info.state)));
 	hv_stores(RETVAL, "flags", newRV_noinc((SV*)reverse_flags(session_flags, info.flags)));
 	hv_stores(RETVAL, "device-error", newSVuv(info.ulDeviceError));
 OUTPUT:
