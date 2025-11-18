@@ -7,6 +7,10 @@
 #define NEED_mg_findext
 #include "ppport.h"
 
+#ifndef newSVbool
+#define newSVbool(value) newSVsv(boolSV(value))
+#endif
+
 #include "cryptoki.h"
 #include "refcount.h"
 
@@ -1494,7 +1498,7 @@ static SV* S_reverse_attribute(pTHX_ CK_ATTRIBUTE* attribute) {
 		case IntAttr:
 			return newSVuv(get_intval(pointer));
 		case BoolAttr:
-			return newSVsv(boolSV(*(const char*)pointer));
+			return newSVbool(*(const char*)pointer);
 		case StrAttr: {
 			SV* result = newSVpvn_utf8(pointer, length, TRUE);
 			sv_utf8_downgrade(result, TRUE);
