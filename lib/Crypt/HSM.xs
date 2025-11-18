@@ -261,20 +261,16 @@ static UV S_get_flags(pTHX_ const map table, size_t table_size, SV* input) {
 }
 #define get_flags(table, input) S_get_flags(aTHX_ table, sizeof table / sizeof *table, input)
 
-static AV* S_reverse_flags(pTHX_ const map table, size_t table_size, CK_ULONG input) {
-	AV* result = newAV();
+static SV* S_reverse_flags(pTHX_ const map table, size_t table_size, CK_ULONG input) {
+	HV* result = newHV();
 	CK_ULONG i;
 	for (i = 0; i < CHAR_BIT * sizeof(CK_ULONG); ++i) {
 		CK_ULONG right = 1ul << i;
-		if (input & right) {
-			const entry* item = S_map_reverse_find(aTHX_ table, table_size, right);
-			if (item)
-				av_push(result, newSVpvn(item->key, item->length));
-			else
-				av_push(result, newSVpvs("unknown"));
-		}
+		const entry* item = S_map_reverse_find(aTHX_ table, table_size, right);
+		if (item)
+			hv_store(result, item->key, item->length, newSVbool(input & right), 0);
 	}
-	return result;
+	return newRV_noinc((SV*)result);
 }
 #define reverse_flags(table, input) S_reverse_flags(aTHX_ table, sizeof table / sizeof *table, input)
 
@@ -1545,11 +1541,11 @@ static SV* S_reverse_attribute(pTHX_ CK_ATTRIBUTE* attribute) {
 		}
 		case TokenFlagsAttr: {
 			CK_ULONG integer = get_intval(pointer);
-			return newRV_noinc((SV*)reverse_flags(token_flags, integer));
+			return reverse_flags(token_flags, integer);
 		}
 		case SecurityDomainAttr: {
 			CK_ULONG integer = get_intval(pointer);
-			return newRV_noinc((SV*)reverse_flags(security_domains, integer));
+			return reverse_flags(security_domains, integer);
 		}
 		case IntArrayAttr: {
 			AV* result = newAV();
@@ -1868,7 +1864,7 @@ CODE:
 	RETVAL = newHV();
 	hv_stores(RETVAL, "cryptoki-version", version_to_sv(&info.cryptokiVersion));
 	hv_stores(RETVAL, "manufacturer-id", trimmed_value(info.manufacturerID, 32));
-	hv_stores(RETVAL, "flags", newRV_noinc((SV*)newAV()));
+	hv_stores(RETVAL, "flags", newRV_noinc((SV*)newHV()));
 	hv_stores(RETVAL, "library-description", trimmed_value(info.libraryDescription, 32));
 	hv_stores(RETVAL, "library-version", version_to_sv(&info.libraryVersion));
 OUTPUT:
@@ -1940,7 +1936,7 @@ CODE:
 	RETVAL = newHV();
 	hv_stores(RETVAL, "description", trimmed_value(info.slotDescription, 64));
 	hv_stores(RETVAL, "manufacturer-id", trimmed_value(info.manufacturerID, 32));
-	hv_stores(RETVAL, "flags", newRV_noinc((SV*)reverse_flags(slot_flags, info.flags)));
+	hv_stores(RETVAL, "flags", reverse_flags(slot_flags, info.flags));
 	hv_stores(RETVAL, "hardware-version", version_to_sv(&info.hardwareVersion));
 	hv_stores(RETVAL, "firmware-version", version_to_sv(&info.firmwareVersion));
 OUTPUT:
@@ -1958,7 +1954,7 @@ CODE:
 	hv_stores(RETVAL, "manufacturer-id", trimmed_value(info.manufacturerID, 32));
 	hv_stores(RETVAL, "model", trimmed_value(info.model, 16));
 	hv_stores(RETVAL, "serial-number", trimmed_value(info.serialNumber, 16));
-	hv_stores(RETVAL, "flags", newRV_noinc((SV*)reverse_flags(token_flags, info.flags)));
+	hv_stores(RETVAL, "flags", reverse_flags(token_flags, info.flags));
 	hv_stores(RETVAL, "max-session-count", newSVuv(info.ulMaxSessionCount));
 	hv_stores(RETVAL, "session-count", newSVuv(info.ulSessionCount));
 	hv_stores(RETVAL, "max-rw-session-count", newSVuv(info.ulMaxRwSessionCount));
@@ -2067,7 +2063,7 @@ CODE:
 	RETVAL = newHV();
 	hv_stores(RETVAL, "min-key-size", newSVuv(self->ulMinKeySize));
 	hv_stores(RETVAL, "max-key-size", newSVuv(self->ulMaxKeySize));
-	hv_stores(RETVAL, "flags", newRV_noinc((SV*)reverse_flags(mechanism_flags, self->flags)));
+	hv_stores(RETVAL, "flags", reverse_flags(mechanism_flags, self->flags));
 OUTPUT:
 	RETVAL
 
@@ -2124,7 +2120,7 @@ CODE:
 	RETVAL = newHV();
 	hv_stores(RETVAL, "slot-id", newSVuv(info.slotID));
 	hv_stores(RETVAL, "state", entry_to_sv(map_reverse_find(state_flags, info.state)));
-	hv_stores(RETVAL, "flags", newRV_noinc((SV*)reverse_flags(session_flags, info.flags)));
+	hv_stores(RETVAL, "flags", reverse_flags(session_flags, info.flags));
 	hv_stores(RETVAL, "device-error", newSVuv(info.ulDeviceError));
 OUTPUT:
 	RETVAL
