@@ -1,6 +1,8 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+
+0.023     2025-11-19 19:09:44+01:00 Europe/Brussels
           - [BREAKING] Turn open_session argument into named arguments
           - Fix session state field to a scalar
           - Make various flag fields hashes instead of arrays
