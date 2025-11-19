@@ -1,6 +1,7 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+          - [BREAKING] Turn open_session argument into named arguments
           - Fix session state field to a scalar
           - Make various flag fields hashes instead of arrays
           - Allow for undefined PIN

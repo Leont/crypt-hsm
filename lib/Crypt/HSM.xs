@@ -197,8 +197,6 @@ static const map session_flags = {
 	{ STR_WITH_LEN("rw-session"), CKF_RW_SESSION },
 	{ STR_WITH_LEN("serial-session"), CKF_SERIAL_SESSION },
 };
-typedef CK_FLAGS Session_flags;
-#define XS_unpack_Session_flags(input) get_flags(session_flags, input)
 
 static const map mechanism_flags = {
 	{ STR_WITH_LEN("hw"), CKF_HW },
@@ -1807,7 +1805,6 @@ TYPEMAP: <<END
 
 	CK_MECHANISM_TYPE            T_PACKED
 	Attributes                   T_PACKED
-	Session_flags                T_PACKED
 END
 
 BOOT:
@@ -1971,10 +1968,20 @@ CODE:
 OUTPUT:
 	RETVAL
 
-Crypt::HSM::Session open_session(Crypt::HSM::Slot self, Session_flags flags = 0)
+Crypt::HSM::Session open_session(Crypt::HSM::Slot self, ...)
 CODE:
 	CK_NOTIFY Notify = NULL;
 	CK_SESSION_HANDLE handle;
+
+	CK_ULONG flags = CKF_SERIAL_SESSION;
+	size_t current = 1;
+	for (current = 1; current + 2 <= items; current += 2) {
+		CK_ULONG internal = map_get(session_flags, ST(current), "session flag");
+		if (SvTRUE(ST(current + 1)))
+			flags |= internal;
+		else
+			flags &= ~internal;
+	}
 
 	CK_RV result = self->provider->funcs->C_OpenSession(self->slot, flags | CKF_SERIAL_SESSION, NULL, Notify, &handle);
 	if (result != CKR_OK)

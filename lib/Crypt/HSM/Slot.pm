@@ -18,9 +18,17 @@ use Crypt::HSM;
 
 This represents a slot on a PKCS implementation.
 
-=method open_session($flags = [])
+=method open_session(%flags)
 
-This opens a L<Crypt::HSM::Session|Crypt::HSM::Session> to this slot. C<$flag> is an optional array that may currently contain the value C<'rw-session'> to enable writing to the token.
+This opens a L<Crypt::HSM::Session|Crypt::HSM::Session> to this slot. It takes named arguments arguments, currently only one is defined:
+
+=over 4
+
+=item * C<rw-session>
+
+If set to a true value, a read-write session is opened.
+
+=back
 
 =method mechanisms()
 
