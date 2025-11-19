@@ -2202,18 +2202,19 @@ PPCODE:
 	if (result != CKR_OK)
 		croak_with("Could not find objects", result);
 
-	while (1) {
-		CK_OBJECT_HANDLE current;
-		CK_ULONG actual;
-		CK_RV result = self->provider->funcs->C_FindObjects(self->handle, &current, 1, &actual);
+	CK_ULONG actual = 0;
+	do {
+		static const CK_ULONG buffer_size = 16;
+		CK_OBJECT_HANDLE current[buffer_size];
+		CK_ULONG iter;
+		CK_RV result = self->provider->funcs->C_FindObjects(self->handle, current, buffer_size, &actual);
 		if (result != CKR_OK) {
 			self->provider->funcs->C_FindObjectsFinal(self->handle);
 			croak_with("Could not find objects", result);
 		}
-		if (actual == 0)
-			break;
-		mXPUSHs(new_object(self, current));
-	}
+		for (iter = 0; iter < actual; ++iter)
+			mXPUSHs(new_object(self, current[iter]));
+	} while (actual > 0);
 	self->provider->funcs->C_FindObjectsFinal(self->handle);
 
 
