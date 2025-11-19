@@ -22,7 +22,7 @@ use Crypt::HSM::Mechanism;
 
  my %key_attrs = (label => 'my-key', class => 'secret-key');
  my ($key) = $session->find_objects(\%key_attrs)
-	or die "No such key 'my-key'";
+     or die "No such key 'my-key'";
  my $iv = $session->generate_random(16);
  my $ciphertext = $session->encrypt('aes-gcm', $key, $plaintext, $iv);
 
@@ -42,9 +42,9 @@ This represents a slot on the provider. A slot may or may not contain a token; t
 
 =item * L<Session|Crypt::HSM::Session>
 
-This represents a session on a token / slot. It may or may not be. It may contain session data (e.g. keys not stored on the token) in addition to its token data.
+This represents a session on a token / slot. It may be read-only or read-write; It may or may not be authenticated. It may contain session data (e.g. keys not stored on the token) in addition to the token data.
 
-=item * L<Slot|Crypt::HSM::Slot>
+=item * L<Stream|Crypt::HSM::Stream>
 
 This represents a cryptographic stream. There are two types of stream that produce a result of similar length as the input: L<encrypt|Crypt::HSM::Encrypt> and L<decrypt|Crypt::HSM::Decrypt>; and 2 that return a fixed sized product: L<digest|Crypt::HSM::Digest> and L<sign|Crypt::HSM::Sign>; and one that returns a bool: L<verify|Crypt::HSM::Verify>.
 

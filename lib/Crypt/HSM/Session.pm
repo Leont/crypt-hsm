@@ -28,7 +28,7 @@ This represents a session with a PKCS module such as an HSM. It does most of the
 
 =head2 Constants
 
-This module uses hundreds of constants from the PKCS11 standard as short stings. They're all lowercased, without prefix and with hyphens instead of underscores. So C<CKM_SHA256_RSA_PKCS> becomes C<'sha256-rsa-pkcs'>. In KDF names, the <-kdf> part is eliminated.
+This module uses hundreds of constants from the PKCS11 standard as short strings. They're all lowercased, without prefix and with hyphens instead of underscores. So C<CKM_SHA256_RSA_PKCS> becomes C<'sha256-rsa-pkcs'>. In KDF names, the <-kdf> part is eliminated.
 
 =head2 Types
 
@@ -38,11 +38,11 @@ Various types of arguments are recurring its methods, these are:
 
 =item key/object
 
-This is an identifier that refers to resource inside the HSM, it has no meaning outside of it.
+This is a L<Crypt::HSM::Object> object. Typically this is a key, but it can also be other things like a certificate, a piece of data, a hardware feature (e.g. clock or user-interface), or domain parameters.
 
 =item mechanism
 
-This is a mechanism for a cryptographic operation, e.g. C<'aes-gcm'>, C<'sha256-rsa-pkcs'> or C<'sha512-hmac'>. The list of supported mechanisms can be retrieved using the C<mechanisms> method on the C<Crypt::HSM> object.
+This is a mechanism for a cryptographic operation. This may either be a L<Crypt::HSM::Mechanism> object, or the name of a mechanism (e.g. C<'aes-gcm'>, C<'sha256-rsa-pkcs'> or C<'sha512-hmac'>). The list of supported mechanisms can be retrieved using the C<mechanisms> method on the C<Crypt::HSM> object.
 
 =item attributes
 
