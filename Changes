@@ -3,6 +3,7 @@ Revision history for Crypt-HSM
 {{$NEXT}}
           - Fix session state field to a scalar
           - Make various flag fields hashes instead of arrays
+          - Allow for undefined PIN
 
 0.022     2025-11-14 01:48:35+01:00 Europe/Brussels
           - Return correct types in open_* methods

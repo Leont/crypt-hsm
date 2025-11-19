@@ -2142,9 +2142,11 @@ OUTPUT:
 
 void login(Crypt::HSM::Session self, CK_USER_TYPE type, SV* pin)
 CODE:
-	STRLEN pin_len;
-	char* pinPV = SvPVutf8(pin, pin_len);
-	CK_RV result = self->provider->funcs->C_Login(self->handle, type, (CK_BYTE*)pinPV, pin_len);
+	STRLEN pin_len = 0;
+	CK_BYTE* pinPV = NULL;
+	if (SvOK(pin))
+		pinPV = (CK_BYTE*)SvPVutf8(pin, pin_len);
+	CK_RV result = self->provider->funcs->C_Login(self->handle, type, pinPV, pin_len);
 	if (result != CKR_OK)
 		croak_with("Could not log in", result);
 
@@ -2158,21 +2160,26 @@ CODE:
 
 void init_pin(Crypt::HSM::Session self, SV* pin)
 CODE:
-	STRLEN pin_len;
-	char* pinPV = SvPVutf8(pin, pin_len);
+	STRLEN pin_len = 0;
+	CK_BYTE* pinPV = NULL;
+	if (SvOK(pin))
+		pinPV = (CK_BYTE*)SvPVutf8(pin, pin_len);
 
-	CK_RV result = self->provider->funcs->C_InitPIN(self->handle, (CK_BYTE*)pinPV, pin_len);
+	CK_RV result = self->provider->funcs->C_InitPIN(self->handle, pinPV, pin_len);
 	if (result != CKR_OK)
 		croak_with("Could not initialize pin", result);
 
 
 void set_pin(Crypt::HSM::Session self, SV* old_pin, SV* new_pin)
 CODE:
-	STRLEN old_pin_len, new_pin_len;
-	char* old_pinPV = SvPVutf8(old_pin, old_pin_len);
-	char* new_pinPV = SvPVutf8(new_pin, new_pin_len);
+	STRLEN old_pin_len = 0, new_pin_len = 0;
+	CK_BYTE* old_pinPV = NULL, *new_pinPV = NULL;
+	if (SvOK(old_pin))
+		old_pinPV = (CK_BYTE*)SvPVutf8(old_pin, old_pin_len);
+	if (SvOK(new_pin))
+		new_pinPV = (CK_BYTE*)SvPVutf8(new_pin, new_pin_len);
 
-	CK_RV result = self->provider->funcs->C_SetPIN(self->handle, (CK_BYTE*)old_pinPV, old_pin_len, (CK_BYTE*)new_pinPV, new_pin_len);
+	CK_RV result = self->provider->funcs->C_SetPIN(self->handle, old_pinPV, old_pin_len, new_pinPV, new_pin_len);
 	if (result != CKR_OK)
 		croak_with("Could not set pin", result);
 
