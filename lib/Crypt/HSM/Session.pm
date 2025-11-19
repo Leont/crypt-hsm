@@ -130,7 +130,61 @@ This generate C<$length> bytes of randomness.
 
 =method info()
 
-This returns information about the current session.
+This returns a hash with information about the current session.
+
+=over 4
+
+=item * C<slot-id>
+
+ID of the slot that interfaces with the token
+
+=item * C<state>
+
+=over 4
+
+=item * C<ro-public-session>
+
+The application has opened a read-only session.  The application has read-only access to public token objects and read/write access to public session objects.
+
+=item * C<ro-user-functions>
+
+The normal user has been authenticated to the token. The application has read-only access to all token objects (public or private) and read/write access to all session objects (public or private).
+
+=item * C<rw-public-session>
+
+The application has opened a read/write session. The application has read/write access to all public objects.
+
+=item * C<rw-user-functions>
+
+The normal user has been authenticated to the token. The application has read/write access to all objects.
+
+=item * C<rw-so-functions>
+
+The Security Officer has been authenticated to the token. The application has read/write access only to public objects on the token, not to private objects.  The SO can set the normal user’s PIN.
+
+=back
+
+=item * C<flags>
+
+Flags that define the type of session, this hash contains the following entries:
+
+=over 4
+
+=item * rw-session
+
+True if the session is read/write; false if the session is read-only
+
+=item * serial-session
+
+This flag is provided for backward compatibility, and should always be set to true
+
+=back
+
+=item * C<device-error>
+
+An error code defined by the cryptographic device.
+
+=back
 
 =method init_pin($pin)
 

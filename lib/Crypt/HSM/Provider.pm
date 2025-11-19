@@ -28,7 +28,31 @@ This returns a L<Crypt::HSM::Slot|Crypt::HSM::Slot> for the slot with the given 
 
 =method info()
 
-This returns a hash with information about the HSM.
+This returns a hash with information about the HSM. It contains the following keys:
+
+=over 4
+
+=item * C<cryptoki-version>
+
+Cryptoki interface version number, for compatibility with future revisions of this interface.
+
+=item * C<manufacturer-id>
+
+ID of the Cryptoki library manufacturer.
+
+=item * C<flags>
+
+Flags reserved for future versions.
+
+=item * C<library-description>
+
+Description of the library.
+
+=item * C<library-version>
+
+Cryptoki library version number.
+
+=back
 
 =method wait_for_event(@flags)
 
