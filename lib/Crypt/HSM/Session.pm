@@ -62,7 +62,7 @@ Create an object with the given C<$attribute> hash. This returns a L<Crypt::HSM:
 
 Decrypt C<$ciphertext> with C<$mechanism> and C<$key>. This may take mechanism dependent additional arguments such as an IV.
 
-=method derive_key($mechanism, $key, $attributes, ...)
+=method derive_key($mechanism, $key, $attributes = {}, ...)
 
 Derive a new key from C<$key>, using mechanism and setting C<$attributes> on it. This may take mechanism dependent additional arguments. This returns a L<Crypt::HSM::Object|Crypt::HSM::Object> object.
 
@@ -74,11 +74,11 @@ Digest C<$input> with C<$mechanism> and C<$key>. This may take mechanism depende
 
 Encrypt C<$plaintext> with C<$mechanism> and C<$key>. This may take mechanism dependent additional arguments such as an IV.
 
-=method find_objects($attributes)
+=method find_objects($attributes = {})
 
 Find all objects that satisfy the given C<$attributes>. This returns a list of L<Crypt::HSM::Object|Crypt::HSM::Object> objects.
 
-=method generate_key($mechanism, \%attributes)
+=method generate_key($mechanism, $attributes = {})
 
 Generate a new key for C<$mechanism> with C<$attributes>. Some relevant attributes are:
 
@@ -238,7 +238,7 @@ This creates a signature over C<$input> using C<$mechanism> and C<$key>. This ma
 
 Returns the slot identifier used for this session.
 
-=method unwrap_key($mechanism, $unwrap_key, $wrapped_key, $attributes, ...)
+=method unwrap_key($mechanism, $unwrap_key, $wrapped_key, $attributes = {}, ...)
 
 This unwraps the key wrapped in the bytearray C<$wrapped_key> using C<mechanism> and key C<$unwrap_key>, setting C<$attributes> on the new key. This returns a L<Crypt::HSM::Object|Crypt::HSM::Object> object.
 

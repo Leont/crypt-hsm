@@ -1149,6 +1149,8 @@ typedef struct Attributes {
 	CK_ATTRIBUTE* member;
 } Attributes;
 
+static const Attributes empty = { 0, NULL };
+
 enum Attribute_type { IntAttr, BoolAttr, StrAttr, ByteAttr, ClassAttr, BigintAttr, KeyTypeAttr, CertTypeAttr, CertCatAttr, HardwareTypeAttr, ProfileIdAttr, MechanismAttr, OtpFormatAttr, OtpParamAttr, TokenFlagsAttr, SecurityDomainAttr, IntArrayAttr, MechanismArrayAttr, AttrAttr };
 
 typedef struct { const char* key; size_t length; CK_ULONG value; enum Attribute_type type; } attribute_entry;
@@ -2203,7 +2205,7 @@ OUTPUT:
 	RETVAL
 
 
-void find_objects(Crypt::HSM::Session self, Attributes attributes)
+void find_objects(Crypt::HSM::Session self, Attributes attributes = empty)
 PPCODE:
 	CK_RV result = self->provider->funcs->C_FindObjectsInit(self->handle, attributes.member, attributes.length);
 	if (result != CKR_OK)
@@ -2239,7 +2241,7 @@ PPCODE:
 	mXPUSHs(new_object(self, privateKey));
 
 
-SV* generate_key(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Attributes keyTemplate, ...)
+SV* generate_key(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Attributes keyTemplate = empty, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 3);
 	CK_OBJECT_HANDLE handle;
@@ -2462,7 +2464,7 @@ CODE:
 OUTPUT:
 	RETVAL
 
-SV* unwrap_key(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object unwrappingKey, SV* wrapped, Attributes attributes, ...)
+SV* unwrap_key(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object unwrappingKey, SV* wrapped, Attributes attributes = empty, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 5);
 	CK_ULONG wrappedLen;
@@ -2475,7 +2477,7 @@ CODE:
 OUTPUT:
 	RETVAL
 
-SV* derive_key(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object baseKey, Attributes attributes, ...)
+SV* derive_key(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object baseKey, Attributes attributes = empty, ...)
 CODE:
 	CK_OBJECT_HANDLE handle;
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 4);
@@ -2518,7 +2520,7 @@ void DESTROY(Crypt::HSM::Object self)
 CODE:
 	session_refcount_decrement(self->session);
 
-SV* copy_object(Crypt::HSM::Object self, Attributes template)
+SV* copy_object(Crypt::HSM::Object self, Attributes template = empty)
 CODE:
 	CK_OBJECT_HANDLE handle;
 	CK_RV result = self->session->provider->funcs->C_CopyObject(self->session->handle, self->handle, template.member, template.length, &handle);

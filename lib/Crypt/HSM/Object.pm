@@ -24,7 +24,7 @@ This class represents an object (usually a key) in the HSM's database. The type 
 
 It's returned by L<Crypt::HSM::Session|Crypt::HSM::Session> methods like C<find_object> and C<generate_key>, and used in methods such as C<encrypt>, C<decrypt>, C<sign> and C<verify>.
 
-=method copy_object($attributes)
+=method copy_object($attributes = {})
 
 Copy the object, optionally adding/modifying the given attributes.
 
