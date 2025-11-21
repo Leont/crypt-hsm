@@ -1358,13 +1358,13 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 							croak("Invalid Bigint attribute value");
 						AV* input = (AV*) SvRV(value);
 						char* array;
-						Newxz(array, av_len(input) + 1, char);
+						Newxz(array, av_count(input), char);
 						SAVEFREEPV(array);
 						size_t i;
 						for (i = 0; i < av_count(input); ++i)
 							array[i] = (char)SvUV(*av_fetch(input, i, FALSE));
 						current->pValue = array;
-						current->ulValueLen = av_len(input) + 1;
+						current->ulValueLen = av_count(input);
 						break;
 					}
 					// FALLTHROUGH
@@ -1421,12 +1421,12 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 						croak("Invalid IntArray attribute value");
 					AV* array = (AV*) SvRV(value);
 					CK_ULONG* values, i;
-					Newxz(values, av_len(array) + 1, CK_ULONG);
+					Newxz(values, av_count(array), CK_ULONG);
 					SAVEFREEPV(values);
 					for (i = 0; i < av_count(array); ++i)
 						values[i] = (CK_ULONG)SvUV(*av_fetch(array, i, FALSE));
 					current->pValue = value;
-					current->ulValueLen = av_len(array) + 1;
+					current->ulValueLen = av_count(array);
 					break;
 				}
 				case MechanismArrayAttr: {
@@ -1434,12 +1434,12 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 						croak("Invalid MechanismArray attribute value");
 					AV* array = (AV*) SvRV(value);
 					CK_ULONG* values, i;
-					Newxz(values, av_len(array) + 1, CK_ULONG);
+					Newxz(values, av_count(array), CK_ULONG);
 					SAVEFREEPV(values);
 					for (i = 0; i < av_count(array); ++i)
 						values[i] = (CK_ULONG)get_mechanism_type(*av_fetch(array, i, FALSE));
 					current->pValue = value;
-					current->ulValueLen = av_len(array) + 1;
+					current->ulValueLen = av_count(array);
 					break;
 				}
 				case AttrAttr: {
@@ -2574,7 +2574,7 @@ OUTPUT:
 HV* get_attributes(Crypt::HSM::Object self, AV* attributes_av)
 CODE:
 	Attributes attributes;
-	attributes.length = av_len(attributes_av) + 1;
+	attributes.length = av_count(attributes_av);
 	Newxz(attributes.member, attributes.length, CK_ATTRIBUTE);
 	SAVEFREEPV(attributes.member);
 
