@@ -1545,7 +1545,7 @@ static SV* S_reverse_attribute(pTHX_ CK_ATTRIBUTE* attribute) {
 		}
 		case SecurityDomainAttr: {
 			CK_ULONG integer = get_intval(pointer);
-			return reverse_flags(security_domains, integer);
+			return entry_to_sv(map_reverse_find(security_domains, integer));
 		}
 		case IntArrayAttr: {
 			AV* result = newAV();
