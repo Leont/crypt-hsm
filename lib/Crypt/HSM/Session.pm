@@ -234,6 +234,10 @@ This changes the PIN from C<$old_pin> to C<$new_pin>.
 
 This creates a signature over C<$input> using C<$mechanism> and C<$key>. This may take mechanism dependent additional arguments.
 
+=method sign_recover($mechanism, $key, $input, ...)
+
+This creates a signature over C<$input> using C<$mechanism> and C<$key>, the mechanism must support recovery. This may take mechanism dependent additional arguments.
+
 =method slot()
 
 Returns the slot identifier used for this session.
@@ -245,6 +249,10 @@ This unwraps the key wrapped in the bytearray C<$wrapped_key> using C<mechanism>
 =method verify($mechanism, $key, $data, $signature, ...)
 
 Verify that C<$signature> matches C<$data>, using C<$mechanism> and C<$key>. This may take mechanism dependent additional arguments
+
+=method verify_recover($mechanism, $key, $signature, ...)
+
+Verify that C<$signature> is valid and using C<$mechanism> and C<$key>, returning the signed data. This may take mechanism dependent additional arguments
 
 =method wrap_key($mechanism, $wrap_key, $key, ...)
 

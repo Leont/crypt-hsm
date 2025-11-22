@@ -1,6 +1,7 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+          - Add sign_recover and verify_recover methods
           - Allow empty attributes argument in various methods
           - Correct value returned in java-midp-security-domain
 

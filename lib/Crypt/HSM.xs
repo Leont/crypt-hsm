@@ -2370,6 +2370,31 @@ OUTPUT:
 	RETVAL
 
 
+SV* sign_recover(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, SV* data, ...)
+CODE:
+	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 4);
+	CK_RV result = self->provider->funcs->C_SignRecoverInit(self->handle, &mechanism, key->handle);
+	if (result != CKR_OK)
+		croak_with("Couldn't initialize signing", result);
+
+	CK_ULONG dataLen, signedDataLen;
+	CK_BYTE* dataPV = get_buffer(data, &dataLen);
+	result = self->provider->funcs->C_SignRecover(self->handle, dataPV, dataLen, NULL, &signedDataLen);
+	if (result != CKR_OK)
+		croak_with("Couldn't compute signed length", result);
+
+	RETVAL = newSV(signedDataLen);
+	SvPOK_only(RETVAL);
+	result = self->provider->funcs->C_SignRecover(self->handle, dataPV, dataLen, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &signedDataLen);
+	if (result != CKR_OK) {
+		SvREFCNT_dec(RETVAL);
+		croak_with("Couldn't sign", result);
+	}
+	SvCUR(RETVAL) = signedDataLen;
+OUTPUT:
+	RETVAL
+
+
 bool verify(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, SV* data, SV* signature, ...)
 CODE:
 	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 5);
@@ -2403,6 +2428,33 @@ CODE:
 	Newxz(RETVAL, 1, struct Stream);
 	RETVAL->session = session_refcount_increment(self);
 	RETVAL->sign_key = key->handle;
+OUTPUT:
+	RETVAL
+
+
+SV* verify_recover(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, SV* signedData, ...)
+CODE:
+	CK_MECHANISM mechanism = mechanism_from_args(mechanism_type, 4);
+	CK_RV result = self->provider->funcs->C_VerifyRecoverInit(self->handle, &mechanism, key->handle);
+	if (result != CKR_OK)
+		croak_with("Couldn't initialize verifying", result);
+
+	CK_ULONG signedDataLen, dataLen;
+	CK_BYTE* signedDataPV = get_buffer(signedData, &signedDataLen);
+	result = self->provider->funcs->C_VerifyRecover(self->handle, signedDataPV, signedDataLen, NULL, &dataLen);
+	if (result == CKR_OK) {
+		RETVAL = newSV(dataLen);
+		SvPOK_only(RETVAL);
+		result = self->provider->funcs->C_VerifyRecover(self->handle, signedDataPV, signedDataLen, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &dataLen);
+		if (result != CKR_OK) {
+			SvREFCNT_dec(RETVAL);
+			croak_with("Couldn't verify", result);
+		}
+		SvCUR(RETVAL) = dataLen;
+	} else if (result == CKR_SIGNATURE_INVALID)
+		RETVAL = &PL_sv_undef;
+	else
+		croak_with("Couldn't verify", result);
 OUTPUT:
 	RETVAL
 
