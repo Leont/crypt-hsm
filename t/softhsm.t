@@ -45,7 +45,7 @@ my %public_key_template = (
 	verify => 1,
 	wrap => 1,
 	'modulus-bits' => 2096,
-	'public-exponent' => [ 1, 0, 1 ],
+	'public-exponent' => 65537,
 	label => 'test_pub',
 	id => [ 1, 2, 3 ],
 );

@@ -1310,6 +1310,8 @@ static void S_set_intval(pTHX_ CK_ATTRIBUTE* current, CK_ULONG value) {
 }
 #define set_intval(current, value) S_set_intval(aTHX_ current, value)
 
+static const char integer_pattern[] = "J>";
+
 #define get_attributes(attributes) S_get_attributes(aTHX_ attributes)
 #define XS_unpack_Attributes get_attributes
 static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
@@ -1356,20 +1358,19 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 				}
 				case BigIntAttr:
 					if (SvROK(value)) {
-						if (SvTYPE(SvRV(value)) != SVt_PVAV)
-							croak("Invalid Bigint attribute value");
-						AV* input = (AV*) SvRV(value);
-						char* array;
-						Newxz(array, av_count(input), char);
-						SAVEFREEPV(array);
-						size_t i;
-						for (i = 0; i < av_count(input); ++i)
-							array[i] = (char)SvUV(*av_fetch(input, i, FALSE));
-						current->pValue = array;
-						current->ulValueLen = av_count(input);
-						break;
+						dSP;
+						PUSHMARK(SP);
+						mXPUSHs(value);
+						PUTBACK;
+						call_method("to_bytes", G_SCALAR);
+						SPAGAIN;
+						current->pValue = get_buffer(POPs, &current->ulValueLen);
+					} else {
+						SV* temp = sv_2mortal(newSVpvn("", 0));
+						packlist(temp, integer_pattern, integer_pattern + 2, &value, &value+1);
+						current->pValue = get_buffer(temp, &current->ulValueLen);
 					}
-					// FALLTHROUGH
+					break;
 				case ByteAttr: {
 					current->pValue = get_buffer(value, &current->ulValueLen);
 					break;
@@ -1500,7 +1501,25 @@ static SV* S_reverse_attribute(pTHX_ CK_ATTRIBUTE* attribute) {
 			sv_utf8_downgrade(result, TRUE);
 			return result;
 		}
-		case BigIntAttr:
+		case BigIntAttr: {
+			dSP;
+			if (length > IVSIZE) {
+				PUSHMARK(SP);
+				mXPUSHpvs("Math::BigInt");
+				mXPUSHp(pointer, length);
+				PUTBACK;
+				call_method("from_bytes", G_SCALAR);
+			} else {
+				SV* temp = sv_2mortal(newSVpvn("\0\0\0\0\0\0\0\0", IVSIZE));
+				if (length)
+					sv_insert(temp, IVSIZE - length, length, pointer, length);
+				const char* buffer = SvPV_nolen(temp);
+				if (unpackstring(integer_pattern, integer_pattern + 2, buffer, buffer + IVSIZE, 0) != 1)
+					die("Could not decode integer");
+			}
+			SPAGAIN;
+			return SvREFCNT_inc(POPs);
+		}
 		case ByteAttr:
 			return newSVpvn(pointer, length);
 		case ClassAttr: {

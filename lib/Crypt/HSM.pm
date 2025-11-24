@@ -6,6 +6,8 @@ use warnings;
 use XSLoader;
 XSLoader::load(__PACKAGE__, __PACKAGE__->VERSION);
 
+use Math::BigInt;
+
 # Pure-perl backwards compatibility methods
 use Crypt::HSM::Mechanism;
 
