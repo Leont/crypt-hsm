@@ -1,6 +1,8 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+
+0.024     2025-11-24 11:48:42+01:00 Europe/Brussels
           - Add sign_recover and verify_recover methods
           - Allow empty attributes argument in various methods
           - Correct value returned in java-midp-security-domain
