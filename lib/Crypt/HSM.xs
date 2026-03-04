@@ -1432,8 +1432,8 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 					SAVEFREEPV(values);
 					for (i = 0; i < av_count(array); ++i)
 						values[i] = (CK_ULONG)SvUV(*av_fetch(array, i, FALSE));
-					current->pValue = value;
-					current->ulValueLen = av_count(array);
+					current->pValue = values;
+					current->ulValueLen = av_count(array) * sizeof(CK_ULONG);
 					break;
 				}
 				case MechanismArrayAttr: {
@@ -1445,8 +1445,8 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 					SAVEFREEPV(values);
 					for (i = 0; i < av_count(array); ++i)
 						values[i] = (CK_ULONG)get_mechanism_type(*av_fetch(array, i, FALSE));
-					current->pValue = value;
-					current->ulValueLen = av_count(array);
+					current->pValue = values;
+					current->ulValueLen = av_count(array) * sizeof(CK_ULONG);
 					break;
 				}
 				case AttrAttr: {
