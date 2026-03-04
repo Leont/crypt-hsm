@@ -2236,10 +2236,9 @@ PPCODE:
 
 	CK_ULONG actual = 0;
 	do {
-		static const CK_ULONG buffer_size = 16;
-		CK_OBJECT_HANDLE current[buffer_size];
+		CK_OBJECT_HANDLE current[16];
 		CK_ULONG iter;
-		CK_RV result = self->provider->funcs->C_FindObjects(self->handle, current, buffer_size, &actual);
+		CK_RV result = self->provider->funcs->C_FindObjects(self->handle, current, sizeof(current) / sizeof(*current), &actual);
 		if (result != CKR_OK) {
 			self->provider->funcs->C_FindObjectsFinal(self->handle);
 			croak_with("Could not find objects", result);
