@@ -1,6 +1,7 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+          - Make Mechanism hold a Slot instead of a Provider
 
 0.028     2026-03-10 19:54:37+01:00 Europe/Brussels
           - Always set source = DATA_SPECIFIED when doing RSA-OAEP

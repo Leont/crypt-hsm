@@ -1673,20 +1673,32 @@ struct Slot {
 };
 typedef struct Slot* Crypt__HSM__Slot;
 
+static struct Slot* S_slot_refcount_increment(pTHX_ struct Slot* slot) {
+	refcount_inc(&slot->refcount);
+	return slot;
+}
+#define slot_refcount_increment(slot) S_slot_refcount_increment(aTHX_ slot)
+
+static void S_slot_refcount_decrement(pTHX_ struct Slot* slot) {
+	if (refcount_dec(&slot->refcount) == 1) {
+		provider_refcount_decrement(slot->provider);
+		refcount_destroy(&slot->refcount);
+		PerlMemShared_free(slot);
+	}
+}
+#define slot_refcount_decrement(slot) S_slot_refcount_decrement(aTHX_ slot)
+
 static int slot_dup(pTHX_ MAGIC* magic, CLONE_PARAMS* params) {
 	PERL_UNUSED_VAR(params);
 	struct Slot* slot = (struct Slot*) magic->mg_ptr;
-	refcount_inc(&slot->refcount);
+	slot_refcount_increment(slot);
 	return 0;
 }
 
 static int slot_free(pTHX_ SV* sv, MAGIC* magic) {
 	PERL_UNUSED_VAR(sv);
 	struct Slot* slot = (struct Slot*) magic->mg_ptr;
-	if (refcount_dec(&slot->refcount) == 1) {
-		provider_refcount_decrement(slot->provider);
-		PerlMemShared_free(slot);
-	}
+	slot_refcount_decrement(slot);
 	return 0;
 }
 
@@ -1706,8 +1718,7 @@ static SV* S_new_slot(pTHX_ struct Provider* provider, CK_SLOT_ID slot) {
 
 struct Mechanism {
 	Refcount refcount;
-	struct Provider* provider;
-	CK_SLOT_ID slot;
+	struct Slot* slot;
 	CK_MECHANISM_TYPE mechanism;
 };
 typedef struct Mechanism* Crypt__HSM__Mechanism;
@@ -1725,25 +1736,25 @@ static int mechanism_free(pTHX_ SV* sv, MAGIC* magic) {
 	PERL_UNUSED_VAR(sv);
 	struct Mechanism* mechanism = (struct Mechanism*) magic->mg_ptr;
 	if (refcount_dec(&mechanism->refcount) == 1) {
-		provider_refcount_decrement(mechanism->provider);
+		slot_refcount_decrement(mechanism->slot);
+		refcount_destroy(&mechanism->refcount);
 		PerlMemShared_free(mechanism);
 	}
 	return 0;
 }
 static const MGVTBL Crypt__HSM__Mechanism_magic = { NULL, NULL, NULL, NULL, mechanism_free, NULL, mechanism_dup, NULL };
 
-static SV* S_new_mechanism(pTHX_ struct Provider* provider, CK_SLOT_ID slot, CK_MECHANISM_TYPE mechanism) {
+static SV* S_new_mechanism(pTHX_ struct Slot* slot, CK_MECHANISM_TYPE mechanism) {
 	struct Mechanism* entry = PerlMemShared_calloc(1, sizeof(struct Mechanism));
 	refcount_init(&entry->refcount, 1);
 	entry->mechanism = mechanism;
-	entry->slot = slot;
-	entry->provider = provider_refcount_increment(provider);
+	entry->slot = slot_refcount_increment(slot);
 	SV* object = newSV(0);
 	MAGIC* magic = sv_magicext(newSVrv(object, "Crypt::HSM::Mechanism"), NULL, PERL_MAGIC_ext, &Crypt__HSM__Mechanism_magic, (const char*)entry, 0);
 	magic->mg_flags = MGf_DUP;
 	return object;
 }
-#define new_mechanism(provider, slot, mechanism) S_new_mechanism(aTHX_ provider, slot, mechanism)
+#define new_mechanism(slot, mechanism) S_new_mechanism(aTHX_ slot, mechanism)
 
 static CK_MECHANISM_TYPE S_get_mechanism_type(pTHX_ SV* input) {
 	if (SvROK(input)) {
@@ -2042,11 +2053,11 @@ PPCODE:
 		croak_with("Couldn't get mechanisms", result);
 
 	for (i = 0; i < length; ++i)
-		mXPUSHs(new_mechanism(self->provider, self->slot, types[i]));
+		mXPUSHs(new_mechanism(self, types[i]));
 
 SV* mechanism(Crypt::HSM::Slot self, CK_MECHANISM_TYPE type)
 CODE:
-	RETVAL = new_mechanism(self->provider, self->slot, type);
+	RETVAL = new_mechanism(self, type);
 OUTPUT:
 	RETVAL
 
@@ -2085,7 +2096,7 @@ OUTPUT:
 Crypt::HSM::Mechanism::Info info(Crypt::HSM::Mechanism self)
 CODE:
 	RETVAL = safemalloc(sizeof(CK_MECHANISM_INFO));
-	CK_RV result = self->provider->funcs->C_GetMechanismInfo(self->slot, self->mechanism, RETVAL);
+	CK_RV result = self->slot->provider->funcs->C_GetMechanismInfo(self->slot->slot, self->mechanism, RETVAL);
 	if (result != CKR_OK) {
 		Safefree(RETVAL);
 		croak_with("Couldn't get mechanism info", result);
