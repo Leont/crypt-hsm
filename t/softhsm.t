@@ -78,10 +78,10 @@ is $decrypted_text, $plain_text, 'decrypt: "plain text"';
 }
 
 {
-my $encrypted_text = $session->encrypt('rsa-pkcs-oaep', $public_key, $plain_text, 'sha1', 'sha1');
+my $encrypted_text = $session->encrypt('rsa-pkcs-oaep', $public_key, $plain_text, 'sha1');
 note unpack('H*', $encrypted_text);
 
-my $decrypted_text = $session->decrypt('rsa-pkcs-oaep', $private_key, $encrypted_text, 'sha1', 'sha1');
+my $decrypted_text = $session->decrypt('rsa-pkcs-oaep', $private_key, $encrypted_text, 'sha1');
 
 is $decrypted_text, $plain_text, 'decrypt: "plain text"';
 }

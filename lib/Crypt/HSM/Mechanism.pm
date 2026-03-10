@@ -81,7 +81,7 @@ These take a nonce as mandatory additional argument. It also takes an additional
 
 =item * C<'rsa-pkcs-pss'>
 
-This takes a hash and generator function as mandatory arguments, and optionally a salt length in bits (defaulting to 0).
+This takes one mandatory argument: the hash function. It takes two optional arguments: the message generator function (defaulting to the hash function), and optionally a salt length in bits (defaulting to 0).
 
 =item * C<'sha224-rsa-pkcs-pss'>
 
@@ -121,7 +121,7 @@ These takes the public data and an IV as mandatory additional arguments.
 
 =item * C<'rsa-pkcs-oaep'>
 
-This takes two mandatory arguments: the hash and the generator function.
+This takes one mandatory argument: the hash function. It takes two optional arguments: the message generator function (defaulting to the hash function), and a label/encoding parameter.
 
 =item * C<'eddsa'>
 
