@@ -985,14 +985,13 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 				croak("Insufficient parameters for rsa-pkcs-oaep");
 
 			INIT_PARAMS(CK_RSA_PKCS_OAEP_PARAMS);
+			params->source = CKZ_DATA_SPECIFIED;
 
 			params->hashAlg = get_mechanism_type(array[0]);
 			params->mgf = map_get(generators, array[1], "generator");
 
-			if (array_len > 2) {
+			if (array_len > 2)
 				params->pSourceData = get_buffer(array[2], &params->ulSourceDataLen);
-				params->source = 1;
-			}
 
 			break;
 		}
