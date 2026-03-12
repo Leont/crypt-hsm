@@ -1787,10 +1787,26 @@ static void S_session_refcount_decrement(pTHX_ struct Session* session) {
 		session->provider->funcs->C_CloseSession(session->handle);
 		provider_refcount_decrement(session->provider);
 		refcount_destroy(&session->refcount);
-		Safefree(session);
+		PerlMemShared_free(session);
 	}
 }
 #define session_refcount_decrement(session) S_session_refcount_decrement(aTHX_ session)
+
+static int session_dup(pTHX_ MAGIC* magic, CLONE_PARAMS* params) {
+	PERL_UNUSED_VAR(params);
+	struct Session* session = (struct Session*) magic->mg_ptr;
+	session_refcount_increment(session);
+	return 0;
+}
+
+static int session_free(pTHX_ SV* sv, MAGIC* magic) {
+	PERL_UNUSED_VAR(sv);
+	struct Session* session = (struct Session*) magic->mg_ptr;
+	session_refcount_decrement(session);
+	return 0;
+}
+
+static const MGVTBL Crypt__HSM__Session_magic = { NULL, NULL, NULL, NULL, session_free, NULL, session_dup, NULL };
 
 struct Object {
 	struct Session* session;
@@ -1832,7 +1848,7 @@ TYPEMAP: <<END
 	Crypt::HSM::Slot             T_MAGICEXT
 	Crypt::HSM::Mechanism        T_MAGICEXT
 	Crypt::HSM::Mechanism::Info  T_OPAQUEOBJ
-	Crypt::HSM::Session          T_MAGIC
+	Crypt::HSM::Session          T_MAGICEXT
 	Crypt::HSM::Object           T_MAGIC
 	Crypt::HSM::Stream           T_MAGIC
 	Crypt::HSM::Encrypt          T_MAGIC
@@ -2030,7 +2046,7 @@ CODE:
 	if (result != CKR_OK)
 		croak_with("Could not open session", result);
 
-	Newxz(RETVAL, 1, struct Session);
+	RETVAL = PerlMemShared_calloc(1, sizeof(struct Session));
 	refcount_init(&RETVAL->refcount, 1);
 	RETVAL->provider = provider_refcount_increment(self->provider);
 	RETVAL->slot = self->slot;
@@ -2155,10 +2171,6 @@ OUTPUT:
 
 MODULE = Crypt::HSM  PACKAGE = Crypt::HSM::Session PREFIX = session_
 
-
-void DESTROY(Crypt::HSM::Session self)
-CODE:
-	session_refcount_decrement(self);
 
 HV* info(Crypt::HSM::Session self)
 CODE:
@@ -2600,9 +2612,6 @@ CODE:
 		croak_with("Couldn't generate randomness", result);
 OUTPUT:
 	RETVAL
-
-
-int CLONE_SKIP();
 
 
 MODULE = Crypt::HSM  PACKAGE = Crypt::HSM::Object
