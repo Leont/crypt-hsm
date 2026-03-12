@@ -1809,17 +1809,39 @@ static int session_free(pTHX_ SV* sv, MAGIC* magic) {
 static const MGVTBL Crypt__HSM__Session_magic = { NULL, NULL, NULL, NULL, session_free, NULL, session_dup, NULL };
 
 struct Object {
+	Refcount refcount;
 	struct Session* session;
 	CK_OBJECT_HANDLE handle;
 };
 typedef struct Object* Crypt__HSM__Object;
 
+static int object_dup(pTHX_ MAGIC* magic, CLONE_PARAMS* params) {
+	PERL_UNUSED_VAR(params);
+	struct Object* object = (struct Object*) magic->mg_ptr;
+	refcount_inc(&object->refcount);
+	return 0;
+}
+
+static int object_free(pTHX_ SV* sv, MAGIC* magic) {
+	PERL_UNUSED_VAR(sv);
+	struct Object* object = (struct Object*) magic->mg_ptr;
+	if (refcount_dec(&object->refcount) == 1) {
+		session_refcount_decrement(object->session);
+		refcount_destroy(&object->refcount);
+		PerlMemShared_free(object);
+	}
+	return 0;
+}
+
+static const MGVTBL Crypt__HSM__Object_magic = { NULL, NULL, NULL, NULL, object_free, NULL, object_dup, NULL };
+
 static SV* S_new_object(pTHX_ struct Session* session, CK_OBJECT_HANDLE handle) {
-	struct Object* entry = PerlMemShared_calloc(1, sizeof(struct Object));
+	struct Object* entry = PerlMem_calloc(1, sizeof(struct Object));
+	refcount_init(&entry->refcount, 1);
 	entry->session = session_refcount_increment(session);
 	entry->handle = handle;
 	SV* object = newSV(0);
-	sv_magicext(newSVrv(object, "Crypt::HSM::Object"), NULL, PERL_MAGIC_ext, NULL, (const char*)entry, 0);
+	sv_magicext(newSVrv(object, "Crypt::HSM::Object"), NULL, PERL_MAGIC_ext, &Crypt__HSM__Object_magic, (const char*)entry, 0);
 	return object;
 }
 #define new_object(session, object) S_new_object(aTHX_ session, object)
@@ -1849,7 +1871,7 @@ TYPEMAP: <<END
 	Crypt::HSM::Mechanism        T_MAGICEXT
 	Crypt::HSM::Mechanism::Info  T_OPAQUEOBJ
 	Crypt::HSM::Session          T_MAGICEXT
-	Crypt::HSM::Object           T_MAGIC
+	Crypt::HSM::Object           T_MAGICEXT
 	Crypt::HSM::Stream           T_MAGIC
 	Crypt::HSM::Encrypt          T_MAGIC
 	Crypt::HSM::Decrypt          T_MAGIC
@@ -2617,10 +2639,6 @@ OUTPUT:
 MODULE = Crypt::HSM  PACKAGE = Crypt::HSM::Object
 
 
-void DESTROY(Crypt::HSM::Object self)
-CODE:
-	session_refcount_decrement(self->session);
-
 SV* copy_object(Crypt::HSM::Object self, Attributes template = empty)
 CODE:
 	CK_OBJECT_HANDLE handle;
@@ -2720,9 +2738,6 @@ CODE:
 	CK_RV result = self->session->provider->funcs->C_SetAttributeValue(self->session->handle, self->handle, attributes.member, attributes.length);
 	if (result != CKR_OK)
 		croak_with("Could not set attributes", result);
-
-
-int CLONE_SKIP();
 
 
 MODULE = Crypt::HSM  PACKAGE = Crypt::HSM::Stream
