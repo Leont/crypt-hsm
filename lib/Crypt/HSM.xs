@@ -1772,13 +1772,12 @@ static CK_MECHANISM_TYPE S_get_mechanism_type(pTHX_ SV* input) {
 
 struct Session {
 	Refcount refcount;
-	CK_SLOT_ID slot;
+	struct Slot* slot;
 	CK_SESSION_HANDLE handle;
-	struct Provider* provider;
 };
 typedef struct Session* Crypt__HSM__Session;
 
-#define session_funcs(session) ((session)->provider->funcs)
+#define session_funcs(session) slot_funcs(session->slot)
 
 static struct Session* S_session_refcount_increment(pTHX_ struct Session* session) {
 	refcount_inc(&session->refcount);
@@ -1788,8 +1787,8 @@ static struct Session* S_session_refcount_increment(pTHX_ struct Session* sessio
 
 static void S_session_refcount_decrement(pTHX_ struct Session* session) {
 	if (refcount_dec(&session->refcount) == 1) {
-		session->provider->funcs->C_CloseSession(session->handle);
-		provider_refcount_decrement(session->provider);
+		session_funcs(session)->C_CloseSession(session->handle);
+		slot_refcount_decrement(session->slot);
 		refcount_destroy(&session->refcount);
 		PerlMemShared_free(session);
 	}
@@ -2114,8 +2113,7 @@ CODE:
 
 	RETVAL = PerlMemShared_calloc(1, sizeof(struct Session));
 	refcount_init(&RETVAL->refcount, 1);
-	RETVAL->provider = provider_refcount_increment(self->provider);
-	RETVAL->slot = self->slot;
+	RETVAL->slot = slot_refcount_increment(self);
 	RETVAL->handle = handle;
 OUTPUT:
 	RETVAL
@@ -2256,14 +2254,14 @@ OUTPUT:
 
 Crypt::HSM::Provider provider(Crypt::HSM::Session self)
 CODE:
-	RETVAL = provider_refcount_increment(self->provider);
+	RETVAL = provider_refcount_increment(self->slot->provider);
 OUTPUT:
 	RETVAL
 
 
-SV* slot(Crypt::HSM::Session self)
+Crypt::HSM::Slot slot(Crypt::HSM::Session self)
 CODE:
-	RETVAL = new_slot(self->provider, self->slot);
+	RETVAL = slot_refcount_increment(self->slot);
 OUTPUT:
 	RETVAL
 
