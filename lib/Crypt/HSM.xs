@@ -1906,6 +1906,7 @@ typedef struct Stream* Crypt__HSM__Verify;
 
 MODULE = Crypt::HSM	 PACKAGE = Crypt::HSM
 
+
 PROTOTYPES: DISABLE
 
 TYPEMAP: <<END
@@ -1973,7 +1974,9 @@ CODE:
 OUTPUT:
 	RETVAL
 
+
 MODULE = Crypt::HSM	 PACKAGE = Crypt::HSM::Provider
+
 
 HV* info(Crypt::HSM::Provider self)
 CODE:
@@ -2000,7 +2003,7 @@ PPCODE:
 	if ( result != CKR_OK )
 		croak_with("Couldn't get slots", result);
 
-		EXTEND(SP, (int)count);
+	EXTEND(SP, (int)count);
 
 	CK_SLOT_ID_PTR slotList;
 	Newxz(slotList, count, CK_SLOT_ID);
@@ -2039,7 +2042,9 @@ CODE:
 OUTPUT:
 	RETVAL
 
+
 MODULE = Crypt::HSM	 PACKAGE = Crypt::HSM::Slot
+
 
 CK_SLOT_ID id(Crypt::HSM::Slot self)
 CODE:
