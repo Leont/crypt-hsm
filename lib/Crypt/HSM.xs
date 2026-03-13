@@ -1847,19 +1847,55 @@ static SV* S_new_object(pTHX_ struct Session* session, CK_OBJECT_HANDLE handle) 
 #define new_object(session, object) S_new_object(aTHX_ session, object)
 
 struct Stream {
+	Refcount refcount;
 	struct Session* session;
 	CK_OBJECT_HANDLE encrypt_key;
 	CK_OBJECT_HANDLE sign_key;
 };
-
 typedef struct Stream* Crypt__HSM__Stream;
-typedef struct Stream* Crypt__HSM__Encrypt;
-typedef struct Stream* Crypt__HSM__Decrypt;
-typedef struct Stream* Crypt__HSM__Digest;
-typedef struct Stream* Crypt__HSM__Sign;
-typedef struct Stream* Crypt__HSM__Verify;
 
-#define CLONE_SKIP() 1
+static struct Stream* S_open_stream(pTHX_ struct Session* session, CK_OBJECT_HANDLE encrypt_key, CK_OBJECT_HANDLE sign_key) {
+	struct Stream* stream = PerlMemShared_calloc(1, sizeof(struct Stream));
+	refcount_init(&stream->refcount, 1);
+	stream->session = session_refcount_increment(session);
+	stream->encrypt_key = encrypt_key;
+	stream->sign_key = sign_key;
+	return stream;
+}
+#define open_stream(session, encrypt_key, sign_key) S_open_stream(aTHX_ session, encrypt_key, sign_key)
+
+
+static int stream_dup(pTHX_ MAGIC* magic, CLONE_PARAMS* params) {
+	PERL_UNUSED_VAR(params);
+	struct Stream* stream = (struct Stream*) magic->mg_ptr;
+	refcount_inc(&stream->refcount);
+	return 0;
+}
+
+static int stream_free(pTHX_ SV* sv, MAGIC* magic) {
+	PERL_UNUSED_VAR(sv);
+	struct Stream* stream = (struct Stream*) magic->mg_ptr;
+	if (refcount_dec(&stream->refcount) == 1) {
+		session_refcount_decrement(stream->session);
+		refcount_destroy(&stream->refcount);
+		PerlMemShared_free(stream);
+	}
+	return 0;
+}
+
+static const MGVTBL Crypt__HSM__Stream_magic = { NULL, NULL, NULL, NULL, stream_free, NULL, stream_dup, NULL };
+
+typedef struct Stream* Crypt__HSM__Encrypt;
+#define Crypt__HSM__Encrypt_magic Crypt__HSM__Stream_magic
+typedef struct Stream* Crypt__HSM__Decrypt;
+#define Crypt__HSM__Decrypt_magic Crypt__HSM__Stream_magic
+typedef struct Stream* Crypt__HSM__Digest;
+#define Crypt__HSM__Digest_magic Crypt__HSM__Stream_magic
+typedef struct Stream* Crypt__HSM__Sign;
+#define Crypt__HSM__Sign_magic Crypt__HSM__Stream_magic
+typedef struct Stream* Crypt__HSM__Verify;
+#define Crypt__HSM__Verify_magic Crypt__HSM__Stream_magic
+
 
 MODULE = Crypt::HSM	 PACKAGE = Crypt::HSM
 
@@ -1872,12 +1908,12 @@ TYPEMAP: <<END
 	Crypt::HSM::Mechanism::Info  T_OPAQUEOBJ
 	Crypt::HSM::Session          T_MAGICEXT
 	Crypt::HSM::Object           T_MAGICEXT
-	Crypt::HSM::Stream           T_MAGIC
-	Crypt::HSM::Encrypt          T_MAGIC
-	Crypt::HSM::Decrypt          T_MAGIC
-	Crypt::HSM::Digest           T_MAGIC
-	Crypt::HSM::Sign             T_MAGIC
-	Crypt::HSM::Verify           T_MAGIC
+	Crypt::HSM::Stream           T_MAGICEXT
+	Crypt::HSM::Encrypt          T_MAGICEXT
+	Crypt::HSM::Decrypt          T_MAGICEXT
+	Crypt::HSM::Digest           T_MAGICEXT
+	Crypt::HSM::Sign             T_MAGICEXT
+	Crypt::HSM::Verify           T_MAGICEXT
 	CK_BBOOL                     T_BOOL
 	CK_ULONG                     T_U_LONG
 	CK_SLOT_ID                   T_U_LONG
@@ -2359,9 +2395,7 @@ CODE:
 	if (result != CKR_OK)
 		croak_with("Couldn't initialize encryption", result);
 
-	Newxz(RETVAL, 1, struct Stream);
-	RETVAL->session = session_refcount_increment(self);
-	RETVAL->encrypt_key = key->handle;
+	RETVAL = open_stream(self, key->handle, CK_INVALID_HANDLE);
 OUTPUT:
 	RETVAL
 
@@ -2398,9 +2432,7 @@ CODE:
 	if (result != CKR_OK)
 		croak_with("Couldn't initialize decryption", result);
 
-	Newxz(RETVAL, 1, struct Stream);
-	RETVAL->session = session_refcount_increment(self);
-	RETVAL->encrypt_key = key->handle;
+	RETVAL = open_stream(self, key->handle, CK_INVALID_HANDLE);
 OUTPUT:
 	RETVAL
 
@@ -2437,9 +2469,7 @@ CODE:
 	if (result != CKR_OK)
 		croak_with("Couldn't initialize signing", result);
 
-	Newxz(RETVAL, 1, struct Stream);
-	RETVAL->session = session_refcount_increment(self);
-	RETVAL->sign_key = key->handle;
+	RETVAL = open_stream(self, CK_INVALID_HANDLE, key->handle);
 OUTPUT:
 	RETVAL
 
@@ -2499,9 +2529,7 @@ CODE:
 	if (result != CKR_OK)
 		croak_with("Couldn't initialize verifying", result);
 
-	Newxz(RETVAL, 1, struct Stream);
-	RETVAL->session = session_refcount_increment(self);
-	RETVAL->sign_key = key->handle;
+	RETVAL = open_stream(self, CK_INVALID_HANDLE, key->handle);
 OUTPUT:
 	RETVAL
 
@@ -2565,8 +2593,7 @@ CODE:
 	if (result != CKR_OK)
 		croak_with("Couldn't initialize digesting", result);
 
-	Newxz(RETVAL, 1, struct Stream);
-	RETVAL->session = session_refcount_increment(self);
+	RETVAL = open_stream(self, CK_INVALID_HANDLE, CK_INVALID_HANDLE);
 OUTPUT:
 	RETVAL
 
@@ -2769,15 +2796,6 @@ CODE:
 	CK_RV result = self->session->provider->funcs->C_SetOperationState(self->session->handle, statePV, stateLen, self->encrypt_key, self->sign_key);
 	if (result != CKR_OK)
 		croak_with("Couldn't set operation state", result);
-
-
-void DESTROY(Crypt::HSM::Stream self)
-CODE:
-	session_refcount_decrement(self->session);
-	Safefree(self);
-
-
-int CLONE_SKIP()
 
 
 MODULE = Crypt::HSM  PACKAGE = Crypt::HSM::Encrypt
