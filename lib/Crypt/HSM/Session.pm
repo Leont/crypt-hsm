@@ -16,7 +16,7 @@ use Crypt::HSM;
 
  my ($key) = $session->find_objects({ label => $label, encrypt => 1 });
  if (not $key) {
-     my %attrs = (label => $label, sensitive => 1, 'value-len' => 32);
+     my %attrs = (label => $label, sensitive => 1, value_len => 32);
      $key = $session->generate_key('aes-key-gen', \%attrs);
  }
  my $iv = $session->generate_random(16);
@@ -28,7 +28,7 @@ This represents a session with a PKCS module such as an HSM. It does most of the
 
 =head2 Constants
 
-This module uses hundreds of constants from the PKCS11 standard as short strings. They're all lowercased, without prefix and with hyphens instead of underscores. So C<CKM_SHA256_RSA_PKCS> becomes C<'sha256-rsa-pkcs'>. In KDF names, the <-kdf> part is eliminated.
+This module uses hundreds of constants from the PKCS11 standard as short strings. They're all lowercased, without prefix and with hyphens instead of underscores. So C<CKM_SHA256_RSA_PKCS> becomes C<'sha256-rsa-pkcs'>. Alternatively, the hyphens can be written as underscores (). In KDF names, the <-kdf> part is eliminated.
 
 =head2 Types
 

@@ -30,10 +30,18 @@
 typedef struct { const char* key; size_t length; CK_ULONG value; } entry;
 typedef entry map[];
 
+static bool key_eq(const char* name, const char* key) {
+	for (; *key; ++name, ++key) {
+		if (*name != *key && *name != '_' && *key != '-')
+			return FALSE;
+	}
+	return true;
+}
+
 static const entry* S_map_find(pTHX_ const map table, size_t table_size, const char* name, size_t name_length) {
 	size_t i;
 	for (i = 0; i < table_size; ++i) {
-		if (table[i].length == name_length && strEQ(name, table[i].key))
+		if (table[i].length == name_length && key_eq(name, table[i].key))
 			return &table[i];
 	}
 	return NULL;
@@ -1308,7 +1316,7 @@ static const attribute_map attributes = {
 static const attribute_entry* S_get_attribute_entry(pTHX_ const char* name, size_t name_length) {
 	size_t i;
 	for (i = 0; i < sizeof attributes / sizeof *attributes; ++i) {
-		if (attributes[i].length == name_length && strEQ(name, attributes[i].key))
+		if (attributes[i].length == name_length && key_eq(name, attributes[i].key))
 			return &attributes[i];
 	}
 	return NULL;

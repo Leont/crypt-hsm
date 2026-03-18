@@ -41,8 +41,8 @@ my %public_key_template = (
 	token => 0,
 	encrypt => 1,
 	verify => 1,
-	'modulus-bits' => 2048,
-	'public-exponent' => 65537,
+	modulus_bits => 2048,
+	public_exponent => 65537,
 	label => 'test public key',
 	id => 'abc',
 );
@@ -63,7 +63,7 @@ note $private_key->id;
 
 my $plain_text = 'plain text';
 {
-my $encrypted_text = $session->encrypt('rsa-pkcs', $public_key, $plain_text);
+my $encrypted_text = $session->encrypt('rsa_pkcs', $public_key, $plain_text);
 
 my $decrypted_text = $session->decrypt('rsa-pkcs', $private_key, $encrypted_text);
 
@@ -71,7 +71,7 @@ is $decrypted_text, $plain_text, 'rsa-pkcs decrypted';
 }
 
 {
-my $encrypted_text = $session->encrypt('rsa-pkcs-oaep', $public_key, $plain_text, 'sha1');
+my $encrypted_text = $session->encrypt('rsa_pkcs_oaep', $public_key, $plain_text, 'sha1');
 
 my $decrypted_text = $session->decrypt('rsa-pkcs-oaep', $private_key, $encrypted_text, 'sha1');
 
@@ -90,10 +90,10 @@ my $signature = $session->sign('sha256-rsa-pkcs-pss', $private_key, $plain_text)
 ok $session->verify('sha256-rsa-pkcs-pss', $public_key, $plain_text, $signature), 'rsa-pss verified';
 }
 
-my $attributes = $public_key->get_attributes([ 'modulus', 'public-exponent' ]);
+my $attributes = $public_key->get_attributes([ 'modulus', 'public_exponent' ]);
 
 is length($attributes->{modulus}->to_bytes), 256, 'modulus is 2024 bits';
-is $attributes->{'public-exponent'}, 65537, 'public exponent is 65537';
+is $attributes->{public_exponent}, 65537, 'public exponent is 65537';
 
 my $modulus = $public_key->get_attribute('modulus');
 is($modulus, $attributes->{modulus}, 'modulus is modulus');
