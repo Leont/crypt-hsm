@@ -64,8 +64,8 @@ my %private_key_template = (
 
 my ($public_key, $private_key) = $session->generate_keypair('rsa-pkcs-key-pair-gen', \%public_key_template, \%private_key_template);
 
-note $public_key;
-note $private_key;
+note $public_key->id;
+note $private_key->id;
 
 my $plain_text = 'plain text';
 {

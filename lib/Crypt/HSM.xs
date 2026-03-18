@@ -2679,6 +2679,13 @@ OUTPUT:
 MODULE = Crypt::HSM  PACKAGE = Crypt::HSM::Object
 
 
+CK_ULONG id(Crypt::HSM::Object self)
+CODE:
+	RETVAL = self->handle;
+OUTPUT:
+	RETVAL
+
+
 SV* copy_object(Crypt::HSM::Object self, Attributes template = empty)
 CODE:
 	CK_OBJECT_HANDLE handle;

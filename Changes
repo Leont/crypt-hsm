@@ -3,6 +3,7 @@ Revision history for Crypt-HSM
 {{$NEXT}}
           - Make Mechanism and Session hold a Slot instead of a Provider
           - Make Session, Object and Stream instances thread-clone safe
+          - Add id method to Crypt::HSM::Object
 
 0.028     2026-03-10 19:54:37+01:00 Europe/Brussels
           - Always set source = DATA_SPECIFIED when doing RSA-OAEP
