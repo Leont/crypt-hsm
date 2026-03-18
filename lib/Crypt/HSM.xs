@@ -1529,7 +1529,9 @@ static SV* S_reverse_attribute(pTHX_ CK_ATTRIBUTE* attribute) {
 					die("Could not decode integer");
 			}
 			SPAGAIN;
-			return SvREFCNT_inc(POPs);
+			SV* value = POPs;
+			PUTBACK;
+			return SvREFCNT_inc(value);
 		}
 		case ByteAttr:
 			return newSVpvn(pointer, length);
