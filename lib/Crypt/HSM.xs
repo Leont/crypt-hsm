@@ -35,7 +35,7 @@ static bool key_eq(const char* name, const char* key) {
 		if (*name != *key && *name != '_' && *key != '-')
 			return FALSE;
 	}
-	return true;
+	return TRUE;
 }
 
 static const entry* S_map_find(pTHX_ const map table, size_t table_size, const char* name, size_t name_length) {

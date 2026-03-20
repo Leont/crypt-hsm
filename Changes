@@ -1,6 +1,7 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+          - Use TRUE instead of true for backwards compatability
 
 0.029     2026-03-18 23:48:02+01:00 Europe/Brussels
           - Make Mechanism and Session hold a Slot instead of a Provider
