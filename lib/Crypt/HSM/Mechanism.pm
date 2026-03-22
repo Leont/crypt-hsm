@@ -127,6 +127,58 @@ This takes one mandatory argument: the hash function. It takes two optional argu
 
 This takes two optional arguments. If no arguments are given it's run in pure mode, if they are given it's run in contextual mode. The first argument is the context data. The second is the pre-hash flag: if true it will enable pre-hashing mode.
 
+=item * C<'ml-dsa'>
+
+=item * C<'hash-ml-dsa-sha224'>
+
+=item * C<'hash-ml-dsa-sha256'>
+
+=item * C<'hash-ml-dsa-sha384'>
+
+=item * C<'hash-ml-dsa-sha512'>
+
+=item * C<'hash-ml-dsa-sha3-224'>
+
+=item * C<'hash-ml-dsa-sha3-256'>
+
+=item * C<'hash-ml-dsa-sha3-384'>
+
+=item * C<'hash-ml-dsa-sha3-512'>
+
+=item * C<'hash-ml-dsa-shake128'>
+
+=item * C<'hash-ml-dsa-shake256'>
+
+=item * C<'slh-dsa'>
+
+=item * C<'hash-slh-dsa-sha224'>
+
+=item * C<'hash-slh-dsa-sha256'>
+
+=item * C<'hash-slh-dsa-sha384'>
+
+=item * C<'hash-slh-dsa-sha512'>
+
+=item * C<'hash-slh-dsa-sha3-224'>
+
+=item * C<'hash-slh-dsa-sha3-256'>
+
+=item * C<'hash-slh-dsa-sha3-384'>
+
+=item * C<'hash-slh-dsa-sha3-512'>
+
+=item * C<'hash-slh-dsa-shake128'>
+
+=item * C<'hash-slh-dsa-shake256'>
+
+These takes two optional arguments: a context string, and a hedge type (C<'hedge-preferred'>, C<'hedge-required'> or C<'deterministic-required'>)
+
+=item * C<'hash-ml-dsa'>
+
+=item * C<'hash-slh-dsa'>
+
+These take one mandatory argument, a hash mechanism, and two optional arguments: a context string, and a hedge type (C<'hedge-preferred'>, C<'hedge-required'> or C<'deterministic-required'>).
+
 =back
 
 =begin Pod::Coverage
