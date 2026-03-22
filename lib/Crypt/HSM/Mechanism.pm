@@ -127,6 +127,20 @@ This takes one mandatory argument: the hash function. It takes two optional argu
 
 This takes two optional arguments. If no arguments are given it's run in pure mode, if they are given it's run in contextual mode. The first argument is the context data. The second is the pre-hash flag: if true it will enable pre-hashing mode.
 
+=item * C<'aes-key-wrap'>
+
+=item * C<'aes-key-wrap-pad'>
+
+=item * C<'aes-key-wrap-pkcs7'>
+
+=item * C<'aes-key-wrap-kwp'>
+
+These take an optional byte string that is the array of bytes to be used as the initial value.
+
+=item * C<'rsa-aes-key-wrap'>
+
+This takes two mandatory and two optional arguments. The first argument is the length of the AES key in bits (C<128>, C<192> or C<256>), the other arguments are the same as C<'rsa-pkcs-oaep'>.
+
 =item * C<'ml-dsa'>
 
 =item * C<'hash-ml-dsa-sha224'>

@@ -1041,6 +1041,14 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 			break;
 		}
 
+		case CKM_AES_KEY_WRAP:
+		case CKM_AES_KEY_WRAP_PAD:
+		case CKM_AES_KEY_WRAP_PKCS7:
+		case CKM_AES_KEY_WRAP_KWP:
+			if (array_len > 0)
+				result.pParameter = get_buffer(array[0], &result.ulParameterLen);
+			break;
+
 		case CKM_RSA_PKCS_OAEP: {
 			if (array_len < 1)
 				croak("Insufficient parameters for rsa-pkcs-oaep");
@@ -1054,6 +1062,31 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 
 			if (array_len > 2)
 				params->pSourceData = get_buffer(array[2], &params->ulSourceDataLen);
+
+			break;
+		}
+
+		case CKM_RSA_AES_KEY_WRAP: {
+			if (array_len < 2)
+				croak("Insufficient parameters for rsa-aes-key-wrap");
+
+			INIT_PARAMS(CK_RSA_AES_KEY_WRAP_PARAMS);
+
+			params->ulAESKeyBits = SvIV(array[0]);
+
+			CK_RSA_PKCS_OAEP_PARAMS* oaep_params;
+			Newxz(oaep_params, 1, CK_RSA_PKCS_OAEP_PARAMS);
+			SAVEFREEPV(oaep_params);
+			params->pOAEPParams = oaep_params;
+
+			oaep_params->source = CKZ_DATA_SPECIFIED;
+
+			oaep_params->hashAlg = get_mechanism_type(array[1]);
+			SV* mgf_argument = array_len > 2 ? array[2] : array[1];
+			oaep_params->mgf = map_get(generators, mgf_argument, "generator");
+
+			if (array_len > 3)
+				oaep_params->pSourceData = get_buffer(array[3], &oaep_params->ulSourceDataLen);
 
 			break;
 		}
