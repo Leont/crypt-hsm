@@ -2882,7 +2882,7 @@ CODE:
 	CK_ULONG length;
 	CK_RV result = session_funcs(self)->C_WrapKey(self->handle, &mechanism, wrappingKey->handle, key->handle, NULL, &length);
 	if (result != CKR_OK)
-		croak_with("Couldn't compute wraped length", result);
+		croak_with("Couldn't compute wrapped length", result);
 
 	RETVAL = newSV(length);
 	SvPOK_only(RETVAL);
