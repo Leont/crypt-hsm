@@ -28,6 +28,12 @@ for my $slot ( @slots ) {
 	note explain $tokenInfo;
 }
 
+for my $mechanism ($slots[0]->mechanisms) {
+	my $info = $mechanism->info;
+	my @flags = $info->flags;
+	note $mechanism->name, ': ', join ', ', @flags;
+}
+
 my $session = $slots[0]->open_session('rw-session' => 0);
 
 undef $provider;
@@ -106,10 +112,11 @@ ok $aes_key, 'aes key successfully generated';
 my $iv = "\0" x 16;
 my $encoder = $session->open_encrypt('aes-cbc-pad', $aes_key, $iv);
 
-my $ciphertext = $encoder->add_data($plain_text x 3);
+my $tripled = $plain_text x 3;
+my $ciphertext = $encoder->add_data($tripled);
 $ciphertext .= $encoder->finalize;
 
-is $session->decrypt('aes-cbc-pad', $aes_key, $ciphertext, $iv), $plain_text x 3;
+is $session->decrypt('aes-cbc-pad', $aes_key, $ciphertext, $iv), $tripled, 'AES decrypts correctly';
 
 {
 	my $wrapped = $session->wrap_key('aes-key-wrap', $aes_key, $private_key);
