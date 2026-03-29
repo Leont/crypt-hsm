@@ -1,6 +1,8 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+
+0.030     2026-03-29 18:58:59+02:00 Europe/Brussels
           - Add partial support for PKCS #11 3.2
           - Use TRUE instead of true for backwards compatability
 
