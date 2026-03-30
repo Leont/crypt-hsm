@@ -2238,8 +2238,7 @@ CODE:
 	refcount_init(&RETVAL->refcount, 1);
 	RETVAL->handle = handle;
 	RETVAL->funcs = funcs;
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 MODULE = Crypt::HSM	 PACKAGE = Crypt::HSM::Provider
@@ -2258,8 +2257,7 @@ CODE:
 	hv_stores(RETVAL, "flags", newRV_noinc((SV*)newHV()));
 	hv_stores(RETVAL, "library-description", trimmed_value(info.libraryDescription, 32));
 	hv_stores(RETVAL, "library-version", version_to_sv(&info.libraryVersion));
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 void slots(Crypt::HSM::Provider self, CK_BBOOL tokenPresent = 1)
@@ -2287,8 +2285,7 @@ PPCODE:
 SV* slot(Crypt::HSM::Provider self, CK_SLOT_ID slot)
 CODE:
 	RETVAL = new_slot(self, slot);
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 SV* wait_for_event(Crypt::HSM::Provider self, ...)
 CODE:
@@ -2306,8 +2303,7 @@ CODE:
 		RETVAL = &PL_sv_undef;
 	else
 		croak_with("Couldn't wait for slot event", result);
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 MODULE = Crypt::HSM	 PACKAGE = Crypt::HSM::Slot
@@ -2316,8 +2312,7 @@ MODULE = Crypt::HSM	 PACKAGE = Crypt::HSM::Slot
 CK_SLOT_ID id(Crypt::HSM::Slot self)
 CODE:
 	RETVAL = self->slot;
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 HV* info(Crypt::HSM::Slot self)
 CODE:
@@ -2332,8 +2327,7 @@ CODE:
 	hv_stores(RETVAL, "flags", reverse_flags(slot_flags, info.flags));
 	hv_stores(RETVAL, "hardware-version", version_to_sv(&info.hardwareVersion));
 	hv_stores(RETVAL, "firmware-version", version_to_sv(&info.firmwareVersion));
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 HV* token_info(Crypt::HSM::Slot self)
 CODE:
@@ -2361,8 +2355,7 @@ CODE:
 	hv_stores(RETVAL, "hardware-version", version_to_sv(&info.hardwareVersion));
 	hv_stores(RETVAL, "firmware-version", version_to_sv(&info.firmwareVersion));
 	hv_stores(RETVAL, "utc-time", trimmed_value(info.utcTime, 16));
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 Crypt::HSM::Session open_session(Crypt::HSM::Slot self, ...)
 CODE:
@@ -2387,8 +2380,7 @@ CODE:
 	refcount_init(&RETVAL->refcount, 1);
 	RETVAL->slot = slot_refcount_increment(self);
 	RETVAL->handle = handle;
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 void mechanisms(Crypt::HSM::Slot self)
 PPCODE:
@@ -2410,8 +2402,7 @@ PPCODE:
 SV* mechanism(Crypt::HSM::Slot self, CK_MECHANISM_TYPE type)
 CODE:
 	RETVAL = new_mechanism(self, type);
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 void close_all_sessions(Crypt::HSM::Slot self)
 CODE:
@@ -2441,8 +2432,7 @@ SV* name(Crypt::HSM::Mechanism self)
 CODE:
 	const entry* item = map_reverse_find(mechanisms, self->mechanism);
 	RETVAL = item ? newSVpvn(item->key, item->length) : newSV(0);
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 Crypt::HSM::Mechanism::Info info(Crypt::HSM::Mechanism self)
@@ -2453,8 +2443,7 @@ CODE:
 		Safefree(RETVAL);
 		croak_with("Couldn't get mechanism info", result);
 	}
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 MODULE = Crypt::HSM  PACKAGE = Crypt::HSM::Mechanism::Info
@@ -2466,8 +2455,7 @@ CODE:
 	hv_stores(RETVAL, "min-key-size", newSVuv(self->ulMinKeySize));
 	hv_stores(RETVAL, "max-key-size", newSVuv(self->ulMaxKeySize));
 	hv_stores(RETVAL, "flags", reverse_flags(mechanism_flags, self->flags));
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 bool has_flags(Crypt::HSM::Mechanism::Info self, ...)
@@ -2477,8 +2465,7 @@ CODE:
 	for (i = 1; i < items; ++i)
 		flags |= get_flags(mechanism_flags, ST(i));
 	RETVAL = (self->flags & flags) == flags;
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 void flags(Crypt::HSM::Mechanism::Info self)
@@ -2494,15 +2481,13 @@ PPCODE:
 CK_ULONG min_key_size(Crypt::HSM::Mechanism::Info self)
 CODE:
 	RETVAL = self->ulMinKeySize;
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 CK_ULONG max_key_size(Crypt::HSM::Mechanism::Info self)
 CODE:
 	RETVAL = self->ulMaxKeySize;
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 MODULE = Crypt::HSM  PACKAGE = Crypt::HSM::Session PREFIX = session_
@@ -2520,22 +2505,19 @@ CODE:
 	hv_stores(RETVAL, "state", entry_to_sv(map_reverse_find(state_flags, info.state)));
 	hv_stores(RETVAL, "flags", reverse_flags(session_flags, info.flags));
 	hv_stores(RETVAL, "device-error", newSVuv(info.ulDeviceError));
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 Crypt::HSM::Provider provider(Crypt::HSM::Session self)
 CODE:
 	RETVAL = provider_refcount_increment(self->slot->provider);
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 Crypt::HSM::Slot slot(Crypt::HSM::Session self)
 CODE:
 	RETVAL = slot_refcount_increment(self->slot);
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 void login(Crypt::HSM::Session self, CK_USER_TYPE type, SV* pin)
@@ -2590,8 +2572,7 @@ CODE:
 		croak_with("Could not create object", result);
 
 	RETVAL = new_object(self, handle);
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 void find_objects(Crypt::HSM::Session self, Attributes attributes = empty)
@@ -2637,8 +2618,7 @@ CODE:
 	if (result != CKR_OK)
 		croak_with("Could not create key", result);
 	RETVAL = new_object(self, handle);
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 SV* encrypt(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, SV* data, ...)
@@ -2662,8 +2642,7 @@ CODE:
 		SvREFCNT_dec(RETVAL);
 		croak_with("Couldn't encrypt", result);
 	}
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 Crypt::HSM::Encrypt open_encrypt(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, ...)
@@ -2674,8 +2653,7 @@ CODE:
 		croak_with("Couldn't initialize encryption", result);
 
 	RETVAL = open_stream(self, key->handle, CK_INVALID_HANDLE);
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 SV* decrypt(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, SV* data, ...)
@@ -2699,8 +2677,7 @@ CODE:
 		croak_with("Couldn't decrypt", result);
 	}
 	SvCUR(RETVAL) = decryptedDataLen;
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 Crypt::HSM::Decrypt open_decrypt(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, ...)
@@ -2711,8 +2688,7 @@ CODE:
 		croak_with("Couldn't initialize decryption", result);
 
 	RETVAL = open_stream(self, key->handle, CK_INVALID_HANDLE);
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 SV* sign(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, SV* data, ...)
@@ -2736,8 +2712,7 @@ CODE:
 		croak_with("Couldn't sign", result);
 	}
 	SvCUR(RETVAL) = signedDataLen;
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 Crypt::HSM::Sign open_sign(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, ...)
@@ -2748,8 +2723,7 @@ CODE:
 		croak_with("Couldn't initialize signing", result);
 
 	RETVAL = open_stream(self, CK_INVALID_HANDLE, key->handle);
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 SV* sign_recover(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, SV* data, ...)
@@ -2773,8 +2747,7 @@ CODE:
 		croak_with("Couldn't sign", result);
 	}
 	SvCUR(RETVAL) = signedDataLen;
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 bool verify(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, SV* data, SV* signature, ...)
@@ -2796,8 +2769,7 @@ CODE:
 		RETVAL = FALSE;
 	else
 		croak_with("Couldn't verify", result);
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 Crypt::HSM::Verify open_verify(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, ...)
@@ -2808,8 +2780,7 @@ CODE:
 		croak_with("Couldn't initialize verifying", result);
 
 	RETVAL = open_stream(self, CK_INVALID_HANDLE, key->handle);
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 SV* verify_recover(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object key, SV* signedData, ...)
@@ -2835,8 +2806,7 @@ CODE:
 		RETVAL = &PL_sv_undef;
 	else
 		croak_with("Couldn't verify", result);
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 SV* digest(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, SV* data, ...)
@@ -2860,8 +2830,7 @@ CODE:
 		croak_with("Couldn't digest", result);
 	}
 	SvCUR(RETVAL) = digestedDataLen;
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 Crypt::HSM::Digest open_digest(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, ...)
@@ -2872,8 +2841,7 @@ CODE:
 		croak_with("Couldn't initialize digesting", result);
 
 	RETVAL = open_stream(self, CK_INVALID_HANDLE, CK_INVALID_HANDLE);
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 SV* wrap_key(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object wrappingKey, Crypt::HSM::Object key, ...)
@@ -2892,8 +2860,7 @@ CODE:
 		croak_with("Couldn't wrap", result);
 	}
 	SvCUR(RETVAL) = length;
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 SV* unwrap_key(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object unwrappingKey, SV* wrapped, Attributes attributes = empty, ...)
 CODE:
@@ -2905,8 +2872,7 @@ CODE:
 	if (result != CKR_OK)
 		croak_with("Couldn't unwrap", result);
 	RETVAL = new_object(self, handle);
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 SV* derive_key(Crypt::HSM::Session self, CK_MECHANISM_TYPE mechanism_type, Crypt::HSM::Object baseKey, Attributes attributes = empty, ...)
 CODE:
@@ -2916,8 +2882,7 @@ CODE:
 	if (result != CKR_OK)
 		croak_with("Couldn't derive key", result);
 	RETVAL = new_object(self, handle);
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 void seed_random(Crypt::HSM::Session self, SV* seed)
@@ -2937,8 +2902,7 @@ CODE:
 	CK_RV result = session_funcs(self)->C_GenerateRandom(self->handle, (CK_BYTE*)SvPVbyte_nolen(RETVAL), length);
 	if (result != CKR_OK)
 		croak_with("Couldn't generate randomness", result);
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 MODULE = Crypt::HSM  PACKAGE = Crypt::HSM::Object
@@ -2947,8 +2911,7 @@ MODULE = Crypt::HSM  PACKAGE = Crypt::HSM::Object
 CK_ULONG id(Crypt::HSM::Object self)
 CODE:
 	RETVAL = self->handle;
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 SV* copy_object(Crypt::HSM::Object self, Attributes template = empty)
@@ -2958,8 +2921,7 @@ CODE:
 	if (result != CKR_OK)
 		croak_with("Could not copy object", result);
 	RETVAL = new_object(self->session, handle);
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 void destroy_object(Crypt::HSM::Object self)
@@ -2973,8 +2935,7 @@ CODE:
 	CK_RV result = object_funcs(self)->C_GetObjectSize(self->session->handle, self->handle, &RETVAL);
 	if (result != CKR_OK)
 		croak_with("Could not get object size", result);
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 SV* get_attribute(Crypt::HSM::Object self, SV* attribute_name)
 CODE:
@@ -3001,8 +2962,7 @@ CODE:
 		croak_with("Could not get attributes", result);
 
 	RETVAL = reverse_attribute(&attribute);
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 HV* get_attributes(Crypt::HSM::Object self, AV* attributes_av)
 CODE:
@@ -3042,8 +3002,7 @@ CODE:
 		SV* value = reverse_attribute(&attributes.member[i]);
 		hv_store_ent(RETVAL, key, value, 0);
 	}
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 void set_attributes(Crypt::HSM::Object self, Attributes attributes)
 CODE:
@@ -3071,8 +3030,7 @@ CODE:
 		}
 		SvCUR(RETVAL) = length;
 	}
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 void set_state(Crypt::HSM::Stream self, SV* state)
 CODE:
@@ -3104,8 +3062,7 @@ CODE:
 		}
 		SvCUR(RETVAL) = encryptedDataLen;
 	}
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 SV* finalize(Crypt::HSM::Encrypt self)
@@ -3123,8 +3080,7 @@ CODE:
 		croak_with("Couldn't encrypt", result);
 	}
 	SvCUR(RETVAL) = encryptedDataLen;
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 MODULE = Crypt::HSM  PACKAGE = Crypt::HSM::Decrypt
@@ -3148,8 +3104,7 @@ CODE:
 		}
 		SvCUR(RETVAL) = decryptedDataLen;
 	}
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 SV* finalize(Crypt::HSM::Decrypt self)
@@ -3167,8 +3122,7 @@ CODE:
 		croak_with("Couldn't decrypt", result);
 	}
 	SvCUR(RETVAL) = decryptedDataLen;
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 MODULE = Crypt::HSM  PACKAGE = Crypt::HSM::Digest
@@ -3206,8 +3160,7 @@ CODE:
 		croak_with("Couldn't digest", result);
 	}
 	SvCUR(RETVAL) = digestedDataLen;
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 MODULE = Crypt::HSM  PACKAGE = Crypt::HSM::Sign
@@ -3237,8 +3190,7 @@ CODE:
 		croak_with("Couldn't sign", result);
 	}
 	SvCUR(RETVAL) = signedDataLen;
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
 
 
 MODULE = Crypt::HSM  PACKAGE = Crypt::HSM::Verify
@@ -3266,5 +3218,4 @@ CODE:
 		RETVAL = FALSE;
 	else
 		croak_with("Couldn't verify", result);
-OUTPUT:
-	RETVAL
+OUTPUT: RETVAL
