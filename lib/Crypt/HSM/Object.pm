@@ -37,7 +37,7 @@ This deletes this object from the slot.
 
 This returns the value of the named attribute of the object.
 
-=method get_attributes(\@attribute_list)
+=method get_attributes(@attribute_list)
 
 This returns a hash with the attributes of the object that are asked for.
 

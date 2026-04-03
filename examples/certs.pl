@@ -22,7 +22,7 @@ for my $slot ($provider->slots) {
 		trusted                => 1,
 	});
 
-	my @object_info = map { $_->get_attributes([qw/subject/]) } @objects;
+	my @object_info = map { $_->get_attributes('subject') } @objects;
 	# I should ASN.1 decode this
 	say Dumper(\@object_info);
 }

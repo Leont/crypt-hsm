@@ -2964,17 +2964,17 @@ CODE:
 	RETVAL = reverse_attribute(&attribute);
 OUTPUT: RETVAL
 
-HV* get_attributes(Crypt::HSM::Object self, AV* attributes_av)
+HV* get_attributes(Crypt::HSM::Object self, ...)
 CODE:
 	Attributes attributes;
-	attributes.length = (CK_ULONG)av_count(attributes_av);
+	attributes.length = (CK_ULONG) items - 1u;
 	Newxz(attributes.member, attributes.length, CK_ATTRIBUTE);
 	SAVEFREEPV(attributes.member);
 
 	CK_ULONG i;
 	for (i = 0; i < attributes.length; ++i) {
 		STRLEN name_length;
-		const char* name = SvPVutf8(*av_fetch(attributes_av, i, FALSE), name_length);
+		const char* name = SvPVutf8(ST(i + 1), name_length);
 		const attribute_entry* item = get_attribute_entry(name, name_length);
 		if (item == NULL)
 			croak("No such attribute %s", name);
@@ -2998,7 +2998,7 @@ CODE:
 
 	RETVAL = newHV();
 	for (i = 0; i < attributes.length; ++i) {
-		SV* key = *av_fetch(attributes_av, i, FALSE);
+		SV* key = ST(i + 1);
 		SV* value = reverse_attribute(&attributes.member[i]);
 		hv_store_ent(RETVAL, key, value, 0);
 	}
