@@ -27,6 +27,298 @@
 #include "dlfcn.h"
 #endif
 
+#ifndef MIN
+#	define MIN(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
+static CK_BYTE* S_get_buffer(pTHX_ SV* buffer, CK_ULONG* length) {
+	STRLEN len;
+	char* temp = SvPVbyte(buffer, len);
+	*length = (CK_ULONG)len;
+	return (CK_BYTE*)temp;
+}
+#define get_buffer(buffer, length) S_get_buffer(aTHX_ buffer, length)
+
+static CK_UTF8CHAR* S_get_text(pTHX_ SV* buffer, CK_ULONG* length) {
+	STRLEN len;
+	char* temp = SvPVutf8(buffer, len);
+	*length = (CK_ULONG)len;
+	return (CK_UTF8CHAR*)temp;
+}
+#define get_text(buffer, length) S_get_text(aTHX_ buffer, length)
+
+static SV* S_trimmed_value(pTHX_ const CK_BYTE* ptr, size_t max) {
+	ptrdiff_t last = max - 1;
+	while (last >= 0 && ptr[last] == ' ')
+		last--;
+	return newSVpvn((const char*)ptr, last + 1);
+}
+#define trimmed_value(ptr, max) S_trimmed_value(aTHX_ ptr, max)
+
+
+struct Provider {
+	Refcount refcount;
+	void* handle;
+	CK_FUNCTION_LIST* funcs;
+};
+typedef struct Provider* Crypt__HSM__Provider;
+
+static struct Provider* S_provider_refcount_increment(pTHX_ struct Provider* provider) {
+	refcount_inc(&provider->refcount);
+	return provider;
+}
+#define provider_refcount_increment(provider) S_provider_refcount_increment(aTHX_ provider)
+
+static void S_provider_refcount_decrement(pTHX_ struct Provider* provider) {
+	if (refcount_dec(&provider->refcount) == 1) {
+		provider->funcs->C_Finalize(NULL);
+		dlclose(provider->handle);
+		refcount_destroy(&provider->refcount);
+		PerlMemShared_free(provider);
+	}
+}
+#define provider_refcount_decrement(provider) S_provider_refcount_decrement(aTHX_ provider)
+
+static int provider_dup(pTHX_ MAGIC* magic, CLONE_PARAMS* params) {
+	PERL_UNUSED_VAR(params);
+	provider_refcount_increment((struct Provider*)magic->mg_ptr);
+	return 0;
+}
+
+static int provider_free(pTHX_ SV* sv, MAGIC* magic) {
+	PERL_UNUSED_VAR(sv);
+	provider_refcount_decrement((struct Provider*)magic->mg_ptr);
+	return 0;
+}
+
+static const MGVTBL Crypt__HSM__Provider_magic = { NULL, NULL, NULL, NULL, provider_free, NULL, provider_dup, NULL };
+
+struct Slot {
+	Refcount refcount;
+	struct Provider* provider;
+	CK_SLOT_ID slot;
+};
+typedef struct Slot* Crypt__HSM__Slot;
+
+#define slot_funcs(slot) ((slot)->provider->funcs)
+
+static struct Slot* S_slot_refcount_increment(pTHX_ struct Slot* slot) {
+	refcount_inc(&slot->refcount);
+	return slot;
+}
+#define slot_refcount_increment(slot) S_slot_refcount_increment(aTHX_ slot)
+
+static void S_slot_refcount_decrement(pTHX_ struct Slot* slot) {
+	if (refcount_dec(&slot->refcount) == 1) {
+		provider_refcount_decrement(slot->provider);
+		refcount_destroy(&slot->refcount);
+		PerlMemShared_free(slot);
+	}
+}
+#define slot_refcount_decrement(slot) S_slot_refcount_decrement(aTHX_ slot)
+
+static int slot_dup(pTHX_ MAGIC* magic, CLONE_PARAMS* params) {
+	PERL_UNUSED_VAR(params);
+	struct Slot* slot = (struct Slot*) magic->mg_ptr;
+	slot_refcount_increment(slot);
+	return 0;
+}
+
+static int slot_free(pTHX_ SV* sv, MAGIC* magic) {
+	PERL_UNUSED_VAR(sv);
+	struct Slot* slot = (struct Slot*) magic->mg_ptr;
+	slot_refcount_decrement(slot);
+	return 0;
+}
+
+static const MGVTBL Crypt__HSM__Slot_magic = { NULL, NULL, NULL, NULL, slot_free, NULL, slot_dup, NULL };
+
+static SV* S_new_slot(pTHX_ struct Provider* provider, CK_SLOT_ID slot) {
+	struct Slot* entry = PerlMemShared_calloc(1, sizeof(struct Slot));
+	refcount_init(&entry->refcount, 1);
+	entry->slot = slot;
+	entry->provider = provider_refcount_increment(provider);
+	SV* object = newSV(0);
+	MAGIC* magic = sv_magicext(newSVrv(object, "Crypt::HSM::Slot"), NULL, PERL_MAGIC_ext, &Crypt__HSM__Slot_magic, (const char*)entry, 0);
+	magic->mg_flags = MGf_DUP;
+	return object;
+}
+#define new_slot(provider, slot) S_new_slot(aTHX_ provider, slot)
+
+struct Mechanism {
+	Refcount refcount;
+	struct Slot* slot;
+	CK_MECHANISM_TYPE mechanism;
+};
+typedef struct Mechanism* Crypt__HSM__Mechanism;
+
+typedef CK_MECHANISM_INFO* Crypt__HSM__Mechanism__Info;
+
+static int mechanism_dup(pTHX_ MAGIC* magic, CLONE_PARAMS* params) {
+	PERL_UNUSED_VAR(params);
+	struct Mechanism* mechanism = (struct Mechanism*) magic->mg_ptr;
+	refcount_inc(&mechanism->refcount);
+	return 0;
+}
+
+static int mechanism_free(pTHX_ SV* sv, MAGIC* magic) {
+	PERL_UNUSED_VAR(sv);
+	struct Mechanism* mechanism = (struct Mechanism*) magic->mg_ptr;
+	if (refcount_dec(&mechanism->refcount) == 1) {
+		slot_refcount_decrement(mechanism->slot);
+		refcount_destroy(&mechanism->refcount);
+		PerlMemShared_free(mechanism);
+	}
+	return 0;
+}
+static const MGVTBL Crypt__HSM__Mechanism_magic = { NULL, NULL, NULL, NULL, mechanism_free, NULL, mechanism_dup, NULL };
+
+static SV* S_new_mechanism(pTHX_ struct Slot* slot, CK_MECHANISM_TYPE mechanism) {
+	struct Mechanism* entry = PerlMemShared_calloc(1, sizeof(struct Mechanism));
+	refcount_init(&entry->refcount, 1);
+	entry->mechanism = mechanism;
+	entry->slot = slot_refcount_increment(slot);
+	SV* object = newSV(0);
+	MAGIC* magic = sv_magicext(newSVrv(object, "Crypt::HSM::Mechanism"), NULL, PERL_MAGIC_ext, &Crypt__HSM__Mechanism_magic, (const char*)entry, 0);
+	magic->mg_flags = MGf_DUP;
+	return object;
+}
+#define new_mechanism(slot, mechanism) S_new_mechanism(aTHX_ slot, mechanism)
+
+struct Session {
+	Refcount refcount;
+	struct Slot* slot;
+	CK_SESSION_HANDLE handle;
+};
+typedef struct Session* Crypt__HSM__Session;
+
+#define session_funcs(session) slot_funcs(session->slot)
+
+static struct Session* S_session_refcount_increment(pTHX_ struct Session* session) {
+	refcount_inc(&session->refcount);
+	return session;
+}
+#define session_refcount_increment(session) S_session_refcount_increment(aTHX_ session)
+
+static void S_session_refcount_decrement(pTHX_ struct Session* session) {
+	if (refcount_dec(&session->refcount) == 1) {
+		session_funcs(session)->C_CloseSession(session->handle);
+		slot_refcount_decrement(session->slot);
+		refcount_destroy(&session->refcount);
+		PerlMemShared_free(session);
+	}
+}
+#define session_refcount_decrement(session) S_session_refcount_decrement(aTHX_ session)
+
+static int session_dup(pTHX_ MAGIC* magic, CLONE_PARAMS* params) {
+	PERL_UNUSED_VAR(params);
+	struct Session* session = (struct Session*) magic->mg_ptr;
+	session_refcount_increment(session);
+	return 0;
+}
+
+static int session_free(pTHX_ SV* sv, MAGIC* magic) {
+	PERL_UNUSED_VAR(sv);
+	struct Session* session = (struct Session*) magic->mg_ptr;
+	session_refcount_decrement(session);
+	return 0;
+}
+
+static const MGVTBL Crypt__HSM__Session_magic = { NULL, NULL, NULL, NULL, session_free, NULL, session_dup, NULL };
+
+struct Object {
+	Refcount refcount;
+	struct Session* session;
+	CK_OBJECT_HANDLE handle;
+};
+typedef struct Object* Crypt__HSM__Object;
+
+#define object_funcs(object) session_funcs(object->session)
+
+static int object_dup(pTHX_ MAGIC* magic, CLONE_PARAMS* params) {
+	PERL_UNUSED_VAR(params);
+	struct Object* object = (struct Object*) magic->mg_ptr;
+	refcount_inc(&object->refcount);
+	return 0;
+}
+
+static int object_free(pTHX_ SV* sv, MAGIC* magic) {
+	PERL_UNUSED_VAR(sv);
+	struct Object* object = (struct Object*) magic->mg_ptr;
+	if (refcount_dec(&object->refcount) == 1) {
+		session_refcount_decrement(object->session);
+		refcount_destroy(&object->refcount);
+		PerlMemShared_free(object);
+	}
+	return 0;
+}
+
+static const MGVTBL Crypt__HSM__Object_magic = { NULL, NULL, NULL, NULL, object_free, NULL, object_dup, NULL };
+
+static SV* S_new_object(pTHX_ struct Session* session, CK_OBJECT_HANDLE handle) {
+	struct Object* entry = PerlMem_calloc(1, sizeof(struct Object));
+	refcount_init(&entry->refcount, 1);
+	entry->session = session_refcount_increment(session);
+	entry->handle = handle;
+	SV* object = newSV(0);
+	sv_magicext(newSVrv(object, "Crypt::HSM::Object"), NULL, PERL_MAGIC_ext, &Crypt__HSM__Object_magic, (const char*)entry, 0);
+	return object;
+}
+#define new_object(session, object) S_new_object(aTHX_ session, object)
+
+struct Stream {
+	Refcount refcount;
+	struct Session* session;
+	CK_OBJECT_HANDLE encrypt_key;
+	CK_OBJECT_HANDLE sign_key;
+};
+typedef struct Stream* Crypt__HSM__Stream;
+
+#define stream_funcs(stream) session_funcs(stream->session)
+
+static struct Stream* S_open_stream(pTHX_ struct Session* session, CK_OBJECT_HANDLE encrypt_key, CK_OBJECT_HANDLE sign_key) {
+	struct Stream* stream = PerlMemShared_calloc(1, sizeof(struct Stream));
+	refcount_init(&stream->refcount, 1);
+	stream->session = session_refcount_increment(session);
+	stream->encrypt_key = encrypt_key;
+	stream->sign_key = sign_key;
+	return stream;
+}
+#define open_stream(session, encrypt_key, sign_key) S_open_stream(aTHX_ session, encrypt_key, sign_key)
+
+
+static int stream_dup(pTHX_ MAGIC* magic, CLONE_PARAMS* params) {
+	PERL_UNUSED_VAR(params);
+	struct Stream* stream = (struct Stream*) magic->mg_ptr;
+	refcount_inc(&stream->refcount);
+	return 0;
+}
+
+static int stream_free(pTHX_ SV* sv, MAGIC* magic) {
+	PERL_UNUSED_VAR(sv);
+	struct Stream* stream = (struct Stream*) magic->mg_ptr;
+	if (refcount_dec(&stream->refcount) == 1) {
+		session_refcount_decrement(stream->session);
+		refcount_destroy(&stream->refcount);
+		PerlMemShared_free(stream);
+	}
+	return 0;
+}
+
+static const MGVTBL Crypt__HSM__Stream_magic = { NULL, NULL, NULL, NULL, stream_free, NULL, stream_dup, NULL };
+
+typedef struct Stream* Crypt__HSM__Encrypt;
+#define Crypt__HSM__Encrypt_magic Crypt__HSM__Stream_magic
+typedef struct Stream* Crypt__HSM__Decrypt;
+#define Crypt__HSM__Decrypt_magic Crypt__HSM__Stream_magic
+typedef struct Stream* Crypt__HSM__Digest;
+#define Crypt__HSM__Digest_magic Crypt__HSM__Stream_magic
+typedef struct Stream* Crypt__HSM__Sign;
+#define Crypt__HSM__Sign_magic Crypt__HSM__Stream_magic
+typedef struct Stream* Crypt__HSM__Verify;
+#define Crypt__HSM__Verify_magic Crypt__HSM__Stream_magic
+
+
 typedef struct { const char* key; size_t length; CK_ULONG value; } entry;
 typedef entry map[];
 
@@ -67,6 +359,36 @@ static const entry* S_map_reverse_find(pTHX_ const map table, size_t table_size,
 	return NULL;
 }
 #define map_reverse_find(table, value) S_map_reverse_find(aTHX_ table, sizeof table / sizeof *table, value)
+
+static UV S_get_flags(pTHX_ const map table, size_t table_size, SV* input) {
+	if (SvROK(input) && SvTYPE(SvRV(input)) == SVt_PVAV) {
+		size_t i;
+		UV result = 0;
+		AV* array = (AV*)SvRV(input);
+		for (i = 0; i < av_count(array); ++i) {
+			SV** svp = av_fetch(array, i, FALSE);
+			result |= S_map_get(aTHX_ table, table_size, *svp, "flag");
+		}
+		return result;
+	}
+	else {
+		return S_map_get(aTHX_ table, table_size, input, "flag");
+	}
+}
+#define get_flags(table, input) S_get_flags(aTHX_ table, sizeof table / sizeof *table, input)
+
+static SV* S_reverse_flags(pTHX_ const map table, size_t table_size, CK_ULONG input) {
+	HV* result = newHV();
+	CK_ULONG i;
+	for (i = 0; i < CHAR_BIT * sizeof(CK_ULONG); ++i) {
+		CK_ULONG right = 1ul << i;
+		const entry* item = S_map_reverse_find(aTHX_ table, table_size, right);
+		if (item)
+			hv_store(result, item->key, (I32)item->length, newSVbool(input & right), 0);
+	}
+	return newRV_noinc((SV*)result);
+}
+#define reverse_flags(table, input) S_reverse_flags(aTHX_ table, sizeof table / sizeof *table, input)
 
 static const map errors = {
 	{ STR_WITH_LEN("ok"), CKR_OK },
@@ -263,35 +585,255 @@ static const map wait_flags = {
 	{ STR_WITH_LEN("dont-block"), CKF_DONT_BLOCK },
 };
 
-static UV S_get_flags(pTHX_ const map table, size_t table_size, SV* input) {
-	if (SvROK(input) && SvTYPE(SvRV(input)) == SVt_PVAV) {
-		size_t i;
-		UV result = 0;
-		AV* array = (AV*)SvRV(input);
-		for (i = 0; i < av_count(array); ++i) {
-			SV** svp = av_fetch(array, i, FALSE);
-			result |= S_map_get(aTHX_ table, table_size, *svp, "flag");
-		}
-		return result;
-	}
-	else {
-		return S_map_get(aTHX_ table, table_size, input, "flag");
-	}
-}
-#define get_flags(table, input) S_get_flags(aTHX_ table, sizeof table / sizeof *table, input)
+static const map user_types = {
+	{ STR_WITH_LEN("so"), CKU_SO },
+	{ STR_WITH_LEN("user"), CKU_USER },
+	{ STR_WITH_LEN("context-specific"), CKU_CONTEXT_SPECIFIC },
+};
+#define XS_unpack_CK_USER_TYPE(input) map_get(user_types, input, "user type")
 
-static SV* S_reverse_flags(pTHX_ const map table, size_t table_size, CK_ULONG input) {
-	HV* result = newHV();
-	CK_ULONG i;
-	for (i = 0; i < CHAR_BIT * sizeof(CK_ULONG); ++i) {
-		CK_ULONG right = 1ul << i;
-		const entry* item = S_map_reverse_find(aTHX_ table, table_size, right);
-		if (item)
-			hv_store(result, item->key, (I32)item->length, newSVbool(input & right), 0);
-	}
-	return newRV_noinc((SV*)result);
-}
-#define reverse_flags(table, input) S_reverse_flags(aTHX_ table, sizeof table / sizeof *table, input)
+static const map generators = {
+	{ STR_WITH_LEN("sha1"), CKG_MGF1_SHA1 },
+	{ STR_WITH_LEN("sha256"), CKG_MGF1_SHA256 },
+	{ STR_WITH_LEN("sha384"), CKG_MGF1_SHA384 },
+	{ STR_WITH_LEN("sha512"), CKG_MGF1_SHA512 },
+	{ STR_WITH_LEN("sha224"), CKG_MGF1_SHA224 },
+	{ STR_WITH_LEN("sha3_224"), CKG_MGF1_SHA3_224 },
+	{ STR_WITH_LEN("sha3_256"), CKG_MGF1_SHA3_256 },
+	{ STR_WITH_LEN("sha3_384"), CKG_MGF1_SHA3_384 },
+	{ STR_WITH_LEN("sha3_512"), CKG_MGF1_SHA3_512 },
+};
+
+static const map kdfs = {
+	{ STR_WITH_LEN("null"), CKD_NULL },
+	{ STR_WITH_LEN("sha1"), CKD_SHA1_KDF },
+	{ STR_WITH_LEN("sha1-asn1"), CKD_SHA1_KDF_ASN1 },
+	{ STR_WITH_LEN("sha1-concatenate"), CKD_SHA1_KDF_CONCATENATE },
+	{ STR_WITH_LEN("sha224"), CKD_SHA224_KDF },
+	{ STR_WITH_LEN("sha256"), CKD_SHA256_KDF },
+	{ STR_WITH_LEN("sha384"), CKD_SHA384_KDF },
+	{ STR_WITH_LEN("sha512"), CKD_SHA512_KDF },
+	{ STR_WITH_LEN("cpdiversify"), CKD_CPDIVERSIFY_KDF },
+	{ STR_WITH_LEN("sha3-224"), CKD_SHA3_224_KDF },
+	{ STR_WITH_LEN("sha3-256"), CKD_SHA3_256_KDF },
+	{ STR_WITH_LEN("sha3-384"), CKD_SHA3_384_KDF },
+	{ STR_WITH_LEN("sha3-512"), CKD_SHA3_512_KDF },
+	{ STR_WITH_LEN("sha1-sp800"), CKD_SHA1_KDF_SP800 },
+	{ STR_WITH_LEN("sha224-sp800"), CKD_SHA224_KDF_SP800 },
+	{ STR_WITH_LEN("sha256-sp800"), CKD_SHA256_KDF_SP800 },
+	{ STR_WITH_LEN("sha384-sp800"), CKD_SHA384_KDF_SP800 },
+	{ STR_WITH_LEN("sha512-sp800"), CKD_SHA512_KDF_SP800 },
+	{ STR_WITH_LEN("sha3-224-sp800"), CKD_SHA3_224_KDF_SP800 },
+	{ STR_WITH_LEN("sha3-256-sp800"), CKD_SHA3_256_KDF_SP800 },
+	{ STR_WITH_LEN("sha3-384-sp800"), CKD_SHA3_384_KDF_SP800 },
+	{ STR_WITH_LEN("sha3-512-sp800"), CKD_SHA3_512_KDF_SP800 },
+	{ STR_WITH_LEN("blake2b-160"), CKD_BLAKE2B_160_KDF },
+	{ STR_WITH_LEN("blake2b-256"), CKD_BLAKE2B_256_KDF },
+	{ STR_WITH_LEN("blake2b-384"), CKD_BLAKE2B_384_KDF },
+	{ STR_WITH_LEN("blake2b-512"), CKD_BLAKE2B_512_KDF },
+};
+
+static const map hedge_types = {
+	{ STR_WITH_LEN("hedge-preferred"), CKH_HEDGE_PREFERRED },
+	{ STR_WITH_LEN("hedge-required"), CKH_HEDGE_REQUIRED },
+	{ STR_WITH_LEN("deterministic-required"), CKH_DETERMINISTIC_REQUIRED },
+};
+
+static const map object_classes = {
+	{ STR_WITH_LEN("data"), CKO_DATA },
+	{ STR_WITH_LEN("certificate"), CKO_CERTIFICATE },
+	{ STR_WITH_LEN("public-key"), CKO_PUBLIC_KEY },
+	{ STR_WITH_LEN("private-key"), CKO_PRIVATE_KEY },
+	{ STR_WITH_LEN("secret-key"), CKO_SECRET_KEY },
+	{ STR_WITH_LEN("hw-feature"), CKO_HW_FEATURE },
+	{ STR_WITH_LEN("domain-parameters"), CKO_DOMAIN_PARAMETERS },
+	{ STR_WITH_LEN("mechanism"), CKO_MECHANISM },
+	{ STR_WITH_LEN("otp-key"), CKO_OTP_KEY },
+	{ STR_WITH_LEN("profile"), CKO_PROFILE },
+	{ STR_WITH_LEN("validation"), CKO_VALIDATION },
+	{ STR_WITH_LEN("trust"), CKO_TRUST },
+	{ STR_WITH_LEN("vendor-defined"), CKO_VENDOR_DEFINED },
+};
+#define get_object_class(input) map_get(object_classes, input, "object class")
+
+static const map key_types = {
+	{ STR_WITH_LEN("rsa"), CKK_RSA },
+	{ STR_WITH_LEN("dsa"), CKK_DSA },
+	{ STR_WITH_LEN("dh"), CKK_DH },
+	{ STR_WITH_LEN("ec"), CKK_EC },
+	{ STR_WITH_LEN("ecdsa"), CKK_ECDSA },
+	{ STR_WITH_LEN("x9-42-dh"), CKK_X9_42_DH },
+	{ STR_WITH_LEN("kea"), CKK_KEA },
+	{ STR_WITH_LEN("generic-secret"), CKK_GENERIC_SECRET },
+	{ STR_WITH_LEN("rc2"), CKK_RC2 },
+	{ STR_WITH_LEN("rc4"), CKK_RC4 },
+	{ STR_WITH_LEN("des"), CKK_DES },
+	{ STR_WITH_LEN("des2"), CKK_DES2 },
+	{ STR_WITH_LEN("des3"), CKK_DES3 },
+	{ STR_WITH_LEN("cast"), CKK_CAST },
+	{ STR_WITH_LEN("cast3"), CKK_CAST3 },
+	{ STR_WITH_LEN("cast128"), CKK_CAST128 },
+	{ STR_WITH_LEN("cast5"), CKK_CAST5 },
+	{ STR_WITH_LEN("rc5"), CKK_RC5 },
+	{ STR_WITH_LEN("idea"), CKK_IDEA },
+	{ STR_WITH_LEN("skipjack"), CKK_SKIPJACK },
+	{ STR_WITH_LEN("baton"), CKK_BATON },
+	{ STR_WITH_LEN("juniper"), CKK_JUNIPER },
+	{ STR_WITH_LEN("cdmf"), CKK_CDMF },
+	{ STR_WITH_LEN("aes"), CKK_AES },
+	{ STR_WITH_LEN("blowfish"), CKK_BLOWFISH },
+	{ STR_WITH_LEN("twofish"), CKK_TWOFISH },
+	{ STR_WITH_LEN("securid"), CKK_SECURID },
+	{ STR_WITH_LEN("hotp"), CKK_HOTP },
+	{ STR_WITH_LEN("acti"), CKK_ACTI },
+	{ STR_WITH_LEN("camellia"), CKK_CAMELLIA },
+	{ STR_WITH_LEN("aria"), CKK_ARIA },
+	{ STR_WITH_LEN("md5-hmac"), CKK_MD5_HMAC },
+	{ STR_WITH_LEN("sha1-hmac"), CKK_SHA_1_HMAC },
+	{ STR_WITH_LEN("ripemd128-hmac"), CKK_RIPEMD128_HMAC },
+	{ STR_WITH_LEN("ripemd160-hmac"), CKK_RIPEMD160_HMAC },
+	{ STR_WITH_LEN("sha256-hmac"), CKK_SHA256_HMAC },
+	{ STR_WITH_LEN("sha384-hmac"), CKK_SHA384_HMAC },
+	{ STR_WITH_LEN("sha512-hmac"), CKK_SHA512_HMAC },
+	{ STR_WITH_LEN("sha224-hmac"), CKK_SHA224_HMAC },
+	{ STR_WITH_LEN("seed"), CKK_SEED },
+	{ STR_WITH_LEN("gostr3410"), CKK_GOSTR3410 },
+	{ STR_WITH_LEN("gostr3411"), CKK_GOSTR3411 },
+	{ STR_WITH_LEN("gost28147"), CKK_GOST28147 },
+	{ STR_WITH_LEN("chacha20"), CKK_CHACHA20 },
+	{ STR_WITH_LEN("poly1305"), CKK_POLY1305 },
+	{ STR_WITH_LEN("aes-xts"), CKK_AES_XTS },
+	{ STR_WITH_LEN("sha3-224-hmac"), CKK_SHA3_224_HMAC },
+	{ STR_WITH_LEN("sha3-256-hmac"), CKK_SHA3_256_HMAC },
+	{ STR_WITH_LEN("sha3-384-hmac"), CKK_SHA3_384_HMAC },
+	{ STR_WITH_LEN("sha3-512-hmac"), CKK_SHA3_512_HMAC },
+	{ STR_WITH_LEN("blake2b-160-hmac"), CKK_BLAKE2B_160_HMAC },
+	{ STR_WITH_LEN("blake2b-256-hmac"), CKK_BLAKE2B_256_HMAC },
+	{ STR_WITH_LEN("blake2b-384-hmac"), CKK_BLAKE2B_384_HMAC },
+	{ STR_WITH_LEN("blake2b-512-hmac"), CKK_BLAKE2B_512_HMAC },
+	{ STR_WITH_LEN("salsa20"), CKK_SALSA20 },
+	{ STR_WITH_LEN("x2ratchet"), CKK_X2RATCHET },
+	{ STR_WITH_LEN("ec-edwards"), CKK_EC_EDWARDS },
+	{ STR_WITH_LEN("ec-montgomery"), CKK_EC_MONTGOMERY },
+	{ STR_WITH_LEN("hkdf"), CKK_HKDF },
+	{ STR_WITH_LEN("sha512-224-hmac"), CKK_SHA512_224_HMAC },
+	{ STR_WITH_LEN("sha512-256-hmac"), CKK_SHA512_256_HMAC },
+	{ STR_WITH_LEN("sha512-t-hmac"), CKK_SHA512_T_HMAC },
+	{ STR_WITH_LEN("hss"), CKK_HSS },
+	{ STR_WITH_LEN("xmss"), CKK_XMSS },
+	{ STR_WITH_LEN("xmssmt"), CKK_XMSSMT },
+	{ STR_WITH_LEN("ml-kem"), CKK_ML_KEM },
+	{ STR_WITH_LEN("ml-dsa"), CKK_ML_DSA },
+	{ STR_WITH_LEN("slh-dsa"), CKK_SLH_DSA },
+	{ STR_WITH_LEN("vendor-defined"), CKK_VENDOR_DEFINED },
+};
+#define get_key_type(input) map_get(key_types, input, "key type")
+
+static const map certificate_types = {
+	{ STR_WITH_LEN("x-509"), CKC_X_509 },
+	{ STR_WITH_LEN("x-509-attr-cert"), CKC_X_509_ATTR_CERT },
+	{ STR_WITH_LEN("wtls"), CKC_WTLS },
+	{ STR_WITH_LEN("vendor-defined"), CKC_VENDOR_DEFINED },
+};
+#define get_cert_type(input) map_get(certificate_types, input, "cert type")
+
+static const map certificate_categories = {
+	{ STR_WITH_LEN("unspecified"), CK_CERTIFICATE_CATEGORY_UNSPECIFIED },
+	{ STR_WITH_LEN("token-user"), CK_CERTIFICATE_CATEGORY_TOKEN_USER },
+	{ STR_WITH_LEN("authority"), CK_CERTIFICATE_CATEGORY_AUTHORITY },
+	{ STR_WITH_LEN("other-entity"), CK_CERTIFICATE_CATEGORY_OTHER_ENTITY },
+};
+#define get_cert_cat(input) map_get(certificate_categories, input, "cert category")
+
+static const map hardware_types = {
+	{ STR_WITH_LEN("monotonic-counter"), CKH_MONOTONIC_COUNTER },
+	{ STR_WITH_LEN("clock"), CKH_CLOCK },
+	{ STR_WITH_LEN("user-interface"), CKH_USER_INTERFACE },
+	{ STR_WITH_LEN("vendor-defined"), CKH_VENDOR_DEFINED },
+};
+#define get_hardware_type(input) map_get(hardware_types, input, "hardware type")
+
+static const map profile_ids = {
+	{ STR_WITH_LEN("invalid-id"), CKP_INVALID_ID },
+	{ STR_WITH_LEN("baseline-provider"), CKP_BASELINE_PROVIDER },
+	{ STR_WITH_LEN("extended-provider"), CKP_EXTENDED_PROVIDER },
+	{ STR_WITH_LEN("authentication-token"), CKP_AUTHENTICATION_TOKEN },
+	{ STR_WITH_LEN("public-certificates-token"), CKP_PUBLIC_CERTIFICATES_TOKEN },
+	{ STR_WITH_LEN("complete-provider"), CKP_COMPLETE_PROVIDER },
+	{ STR_WITH_LEN("hkdf-tls-token"), CKP_HKDF_TLS_TOKEN },
+	{ STR_WITH_LEN("vendor-defined"), CKP_VENDOR_DEFINED },
+};
+#define get_profile_id(input) map_get(profile_ids, input, "profile id")
+
+static const map otp_formats = {
+	{ STR_WITH_LEN("decimal"), CK_OTP_FORMAT_DECIMAL },
+	{ STR_WITH_LEN("hexadecimal"), CK_OTP_FORMAT_HEXADECIMAL },
+	{ STR_WITH_LEN("alphanumeric"), CK_OTP_FORMAT_ALPHANUMERIC },
+	{ STR_WITH_LEN("binary"), CK_OTP_FORMAT_BINARY },
+};
+#define get_otp_format(input) map_get(otp_formats, input, "otp format")
+
+static const map otp_params = {
+	{ STR_WITH_LEN("ignored"), CK_OTP_PARAM_IGNORED },
+	{ STR_WITH_LEN("optional"), CK_OTP_PARAM_OPTIONAL },
+	{ STR_WITH_LEN("mandatory"), CK_OTP_PARAM_MANDATORY },
+};
+#define get_otp_param(input) map_get(otp_params, input, "otp param")
+
+static const map security_domains = {
+	{ STR_WITH_LEN("unspecified"), CK_SECURITY_DOMAIN_UNSPECIFIED },
+	{ STR_WITH_LEN("manufacturer"), CK_SECURITY_DOMAIN_MANUFACTURER },
+	{ STR_WITH_LEN("operator"), CK_SECURITY_DOMAIN_OPERATOR },
+	{ STR_WITH_LEN("third-party"), CK_SECURITY_DOMAIN_THIRD_PARTY },
+};
+#define get_security_domain(input) map_get(security_domains, input, "security domain")
+
+static const map session_validation_flags = {
+	{ STR_WITH_LEN("last_validation_ok"), CKS_LAST_VALIDATION_OK },
+};
+
+static const map parameter_sets = {
+	{ STR_WITH_LEN("ml-dsa-44"), CKP_ML_DSA_44 },
+	{ STR_WITH_LEN("ml-dsa-65"), CKP_ML_DSA_65 },
+	{ STR_WITH_LEN("ml-dsa-87"), CKP_ML_DSA_87 },
+	{ STR_WITH_LEN("slh-dsa-sha2-128s"), CKP_SLH_DSA_SHA2_128S },
+	{ STR_WITH_LEN("slh-dsa-shake-128s"), CKP_SLH_DSA_SHAKE_128S },
+	{ STR_WITH_LEN("slh-dsa-sha2-128f"), CKP_SLH_DSA_SHA2_128F },
+	{ STR_WITH_LEN("slh-dsa-shake-128f"), CKP_SLH_DSA_SHAKE_128F },
+	{ STR_WITH_LEN("slh-dsa-sha2-192s"), CKP_SLH_DSA_SHA2_192S },
+	{ STR_WITH_LEN("slh-dsa-shake-192s"), CKP_SLH_DSA_SHAKE_192S },
+	{ STR_WITH_LEN("slh-dsa-sha2-192f"), CKP_SLH_DSA_SHA2_192F },
+	{ STR_WITH_LEN("slh-dsa-shake-192f"), CKP_SLH_DSA_SHAKE_192F },
+	{ STR_WITH_LEN("slh-dsa-sha2-256s"), CKP_SLH_DSA_SHA2_256S },
+	{ STR_WITH_LEN("slh-dsa-shake-256s"), CKP_SLH_DSA_SHAKE_256S },
+	{ STR_WITH_LEN("slh-dsa-sha2-256f"), CKP_SLH_DSA_SHA2_256F },
+	{ STR_WITH_LEN("slh-dsa-shake-256f"), CKP_SLH_DSA_SHAKE_256F },
+	{ STR_WITH_LEN("ml-kem-512"), CKP_ML_KEM_512 },
+	{ STR_WITH_LEN("ml-kem-768"), CKP_ML_KEM_768 },
+	{ STR_WITH_LEN("ml-kem-1024"), CKP_ML_KEM_1024 },
+};
+
+static const map validation_types = {
+	{ STR_WITH_LEN("type-unspecified"), CKV_TYPE_UNSPECIFIED },
+	{ STR_WITH_LEN("type-software"), CKV_TYPE_SOFTWARE },
+	{ STR_WITH_LEN("type-hardware"), CKV_TYPE_HARDWARE },
+	{ STR_WITH_LEN("type-firmware"), CKV_TYPE_FIRMWARE },
+	{ STR_WITH_LEN("type-hybrid"), CKV_TYPE_HYBRID },
+};
+
+static const map authority_types = {
+	{ STR_WITH_LEN("authority-type-unspecified"), CKV_AUTHORITY_TYPE_UNSPECIFIED },
+	{ STR_WITH_LEN("authority-type-nist-cmvp"), CKV_AUTHORITY_TYPE_NIST_CMVP },
+	{ STR_WITH_LEN("authority-type-common-criteria"), CKV_AUTHORITY_TYPE_COMMON_CRITERIA },
+};
+
+static const map trust_types = {
+	{ STR_WITH_LEN("trust-unknown"), CKT_TRUST_UNKNOWN },
+	{ STR_WITH_LEN("trusted"), CKT_TRUSTED },
+	{ STR_WITH_LEN("trust-anchor"), CKT_TRUST_ANCHOR },
+	{ STR_WITH_LEN("not-trusted"), CKT_NOT_TRUSTED },
+	{ STR_WITH_LEN("trust-must-verify-trust"), CKT_TRUST_MUST_VERIFY_TRUST },
+};
 
 static const map mechanisms = {
 	{ STR_WITH_LEN("rsa-pkcs-key-pair-gen"), CKM_RSA_PKCS_KEY_PAIR_GEN },
@@ -776,57 +1318,6 @@ static const map mechanisms = {
 	{ STR_WITH_LEN("vendor-defined"), CKM_VENDOR_DEFINED },
 };
 
-static CK_MECHANISM_TYPE S_get_mechanism_type(pTHX_ SV* input);
-#define get_mechanism_type(input) S_get_mechanism_type(aTHX_ input)
-#define XS_unpack_CK_MECHANISM_TYPE get_mechanism_type
-
-static const map generators = {
-	{ STR_WITH_LEN("sha1"), CKG_MGF1_SHA1 },
-	{ STR_WITH_LEN("sha256"), CKG_MGF1_SHA256 },
-	{ STR_WITH_LEN("sha384"), CKG_MGF1_SHA384 },
-	{ STR_WITH_LEN("sha512"), CKG_MGF1_SHA512 },
-	{ STR_WITH_LEN("sha224"), CKG_MGF1_SHA224 },
-	{ STR_WITH_LEN("sha3_224"), CKG_MGF1_SHA3_224 },
-	{ STR_WITH_LEN("sha3_256"), CKG_MGF1_SHA3_256 },
-	{ STR_WITH_LEN("sha3_384"), CKG_MGF1_SHA3_384 },
-	{ STR_WITH_LEN("sha3_512"), CKG_MGF1_SHA3_512 },
-};
-
-static const map kdfs = {
-	{ STR_WITH_LEN("null"), CKD_NULL },
-	{ STR_WITH_LEN("sha1"), CKD_SHA1_KDF },
-	{ STR_WITH_LEN("sha1-asn1"), CKD_SHA1_KDF_ASN1 },
-	{ STR_WITH_LEN("sha1-concatenate"), CKD_SHA1_KDF_CONCATENATE },
-	{ STR_WITH_LEN("sha224"), CKD_SHA224_KDF },
-	{ STR_WITH_LEN("sha256"), CKD_SHA256_KDF },
-	{ STR_WITH_LEN("sha384"), CKD_SHA384_KDF },
-	{ STR_WITH_LEN("sha512"), CKD_SHA512_KDF },
-	{ STR_WITH_LEN("cpdiversify"), CKD_CPDIVERSIFY_KDF },
-	{ STR_WITH_LEN("sha3-224"), CKD_SHA3_224_KDF },
-	{ STR_WITH_LEN("sha3-256"), CKD_SHA3_256_KDF },
-	{ STR_WITH_LEN("sha3-384"), CKD_SHA3_384_KDF },
-	{ STR_WITH_LEN("sha3-512"), CKD_SHA3_512_KDF },
-	{ STR_WITH_LEN("sha1-sp800"), CKD_SHA1_KDF_SP800 },
-	{ STR_WITH_LEN("sha224-sp800"), CKD_SHA224_KDF_SP800 },
-	{ STR_WITH_LEN("sha256-sp800"), CKD_SHA256_KDF_SP800 },
-	{ STR_WITH_LEN("sha384-sp800"), CKD_SHA384_KDF_SP800 },
-	{ STR_WITH_LEN("sha512-sp800"), CKD_SHA512_KDF_SP800 },
-	{ STR_WITH_LEN("sha3-224-sp800"), CKD_SHA3_224_KDF_SP800 },
-	{ STR_WITH_LEN("sha3-256-sp800"), CKD_SHA3_256_KDF_SP800 },
-	{ STR_WITH_LEN("sha3-384-sp800"), CKD_SHA3_384_KDF_SP800 },
-	{ STR_WITH_LEN("sha3-512-sp800"), CKD_SHA3_512_KDF_SP800 },
-	{ STR_WITH_LEN("blake2b-160"), CKD_BLAKE2B_160_KDF },
-	{ STR_WITH_LEN("blake2b-256"), CKD_BLAKE2B_256_KDF },
-	{ STR_WITH_LEN("blake2b-384"), CKD_BLAKE2B_384_KDF },
-	{ STR_WITH_LEN("blake2b-512"), CKD_BLAKE2B_512_KDF },
-};
-
-static const map hedge_types = {
-	{ STR_WITH_LEN("hedge-preferred"), CKH_HEDGE_PREFERRED },
-	{ STR_WITH_LEN("hedge-required"), CKH_HEDGE_REQUIRED },
-	{ STR_WITH_LEN("deterministic-required"), CKH_DETERMINISTIC_REQUIRED },
-};
-
 #define INIT_PARAMS(TYPE) \
 	TYPE* params;\
 	Newxz(params, 1, TYPE);\
@@ -842,25 +1333,19 @@ static const map hedge_types = {
 		params->sLen = (CK_ULONG)SvUV((array)[0]);\
 }
 
-#ifndef MIN
-#	define MIN(a, b) ((a) < (b) ? (a) : (b))
-#endif
-
-static CK_BYTE* S_get_buffer(pTHX_ SV* buffer, CK_ULONG* length) {
-	STRLEN len;
-	char* temp = SvPVbyte(buffer, len);
-	*length = (CK_ULONG)len;
-	return (CK_BYTE*)temp;
+static CK_MECHANISM_TYPE S_get_mechanism_type(pTHX_ SV* input) {
+	if (SvROK(input)) {
+		MAGIC* magic = mg_findext(SvRV(input), PERL_MAGIC_ext, &Crypt__HSM__Mechanism_magic);
+		if (!magic)
+			croak("No magic found on Crypt::HSM::Mechanism object");
+		struct Mechanism* mech = (struct Mechanism*) magic->mg_ptr;
+		return mech->mechanism;
+	} else {
+		return map_get(mechanisms, input, "mechanism");
+	}
 }
-#define get_buffer(buffer, length) S_get_buffer(aTHX_ buffer, length)
-
-static CK_UTF8CHAR* S_get_text(pTHX_ SV* buffer, CK_ULONG* length) {
-	STRLEN len;
-	char* temp = SvPVutf8(buffer, len);
-	*length = (CK_ULONG)len;
-	return (CK_UTF8CHAR*)temp;
-}
-#define get_text(buffer, length) S_get_text(aTHX_ buffer, length)
+#define get_mechanism_type(input) S_get_mechanism_type(aTHX_ input)
+#define XS_unpack_CK_MECHANISM_TYPE get_mechanism_type
 
 static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** array, ssize_t array_len) {
 	CK_MECHANISM result = { type, NULL, 0 };
@@ -1154,202 +1639,6 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 	return result;
 }
 #define mechanism_from_args(mechanism, offset) S_specialize_mechanism(aTHX_ mechanism, PL_stack_base + ax + offset, items - offset);
-
-static const map object_classes = {
-	{ STR_WITH_LEN("data"), CKO_DATA },
-	{ STR_WITH_LEN("certificate"), CKO_CERTIFICATE },
-	{ STR_WITH_LEN("public-key"), CKO_PUBLIC_KEY },
-	{ STR_WITH_LEN("private-key"), CKO_PRIVATE_KEY },
-	{ STR_WITH_LEN("secret-key"), CKO_SECRET_KEY },
-	{ STR_WITH_LEN("hw-feature"), CKO_HW_FEATURE },
-	{ STR_WITH_LEN("domain-parameters"), CKO_DOMAIN_PARAMETERS },
-	{ STR_WITH_LEN("mechanism"), CKO_MECHANISM },
-	{ STR_WITH_LEN("otp-key"), CKO_OTP_KEY },
-	{ STR_WITH_LEN("profile"), CKO_PROFILE },
-	{ STR_WITH_LEN("validation"), CKO_VALIDATION },
-	{ STR_WITH_LEN("trust"), CKO_TRUST },
-	{ STR_WITH_LEN("vendor-defined"), CKO_VENDOR_DEFINED },
-};
-#define get_object_class(input) map_get(object_classes, input, "object class")
-
-static const map key_types = {
-	{ STR_WITH_LEN("rsa"), CKK_RSA },
-	{ STR_WITH_LEN("dsa"), CKK_DSA },
-	{ STR_WITH_LEN("dh"), CKK_DH },
-	{ STR_WITH_LEN("ec"), CKK_EC },
-	{ STR_WITH_LEN("ecdsa"), CKK_ECDSA },
-	{ STR_WITH_LEN("x9-42-dh"), CKK_X9_42_DH },
-	{ STR_WITH_LEN("kea"), CKK_KEA },
-	{ STR_WITH_LEN("generic-secret"), CKK_GENERIC_SECRET },
-	{ STR_WITH_LEN("rc2"), CKK_RC2 },
-	{ STR_WITH_LEN("rc4"), CKK_RC4 },
-	{ STR_WITH_LEN("des"), CKK_DES },
-	{ STR_WITH_LEN("des2"), CKK_DES2 },
-	{ STR_WITH_LEN("des3"), CKK_DES3 },
-	{ STR_WITH_LEN("cast"), CKK_CAST },
-	{ STR_WITH_LEN("cast3"), CKK_CAST3 },
-	{ STR_WITH_LEN("cast128"), CKK_CAST128 },
-	{ STR_WITH_LEN("cast5"), CKK_CAST5 },
-	{ STR_WITH_LEN("rc5"), CKK_RC5 },
-	{ STR_WITH_LEN("idea"), CKK_IDEA },
-	{ STR_WITH_LEN("skipjack"), CKK_SKIPJACK },
-	{ STR_WITH_LEN("baton"), CKK_BATON },
-	{ STR_WITH_LEN("juniper"), CKK_JUNIPER },
-	{ STR_WITH_LEN("cdmf"), CKK_CDMF },
-	{ STR_WITH_LEN("aes"), CKK_AES },
-	{ STR_WITH_LEN("blowfish"), CKK_BLOWFISH },
-	{ STR_WITH_LEN("twofish"), CKK_TWOFISH },
-	{ STR_WITH_LEN("securid"), CKK_SECURID },
-	{ STR_WITH_LEN("hotp"), CKK_HOTP },
-	{ STR_WITH_LEN("acti"), CKK_ACTI },
-	{ STR_WITH_LEN("camellia"), CKK_CAMELLIA },
-	{ STR_WITH_LEN("aria"), CKK_ARIA },
-	{ STR_WITH_LEN("md5-hmac"), CKK_MD5_HMAC },
-	{ STR_WITH_LEN("sha1-hmac"), CKK_SHA_1_HMAC },
-	{ STR_WITH_LEN("ripemd128-hmac"), CKK_RIPEMD128_HMAC },
-	{ STR_WITH_LEN("ripemd160-hmac"), CKK_RIPEMD160_HMAC },
-	{ STR_WITH_LEN("sha256-hmac"), CKK_SHA256_HMAC },
-	{ STR_WITH_LEN("sha384-hmac"), CKK_SHA384_HMAC },
-	{ STR_WITH_LEN("sha512-hmac"), CKK_SHA512_HMAC },
-	{ STR_WITH_LEN("sha224-hmac"), CKK_SHA224_HMAC },
-	{ STR_WITH_LEN("seed"), CKK_SEED },
-	{ STR_WITH_LEN("gostr3410"), CKK_GOSTR3410 },
-	{ STR_WITH_LEN("gostr3411"), CKK_GOSTR3411 },
-	{ STR_WITH_LEN("gost28147"), CKK_GOST28147 },
-	{ STR_WITH_LEN("chacha20"), CKK_CHACHA20 },
-	{ STR_WITH_LEN("poly1305"), CKK_POLY1305 },
-	{ STR_WITH_LEN("aes-xts"), CKK_AES_XTS },
-	{ STR_WITH_LEN("sha3-224-hmac"), CKK_SHA3_224_HMAC },
-	{ STR_WITH_LEN("sha3-256-hmac"), CKK_SHA3_256_HMAC },
-	{ STR_WITH_LEN("sha3-384-hmac"), CKK_SHA3_384_HMAC },
-	{ STR_WITH_LEN("sha3-512-hmac"), CKK_SHA3_512_HMAC },
-	{ STR_WITH_LEN("blake2b-160-hmac"), CKK_BLAKE2B_160_HMAC },
-	{ STR_WITH_LEN("blake2b-256-hmac"), CKK_BLAKE2B_256_HMAC },
-	{ STR_WITH_LEN("blake2b-384-hmac"), CKK_BLAKE2B_384_HMAC },
-	{ STR_WITH_LEN("blake2b-512-hmac"), CKK_BLAKE2B_512_HMAC },
-	{ STR_WITH_LEN("salsa20"), CKK_SALSA20 },
-	{ STR_WITH_LEN("x2ratchet"), CKK_X2RATCHET },
-	{ STR_WITH_LEN("ec-edwards"), CKK_EC_EDWARDS },
-	{ STR_WITH_LEN("ec-montgomery"), CKK_EC_MONTGOMERY },
-	{ STR_WITH_LEN("hkdf"), CKK_HKDF },
-	{ STR_WITH_LEN("sha512-224-hmac"), CKK_SHA512_224_HMAC },
-	{ STR_WITH_LEN("sha512-256-hmac"), CKK_SHA512_256_HMAC },
-	{ STR_WITH_LEN("sha512-t-hmac"), CKK_SHA512_T_HMAC },
-	{ STR_WITH_LEN("hss"), CKK_HSS },
-	{ STR_WITH_LEN("xmss"), CKK_XMSS },
-	{ STR_WITH_LEN("xmssmt"), CKK_XMSSMT },
-	{ STR_WITH_LEN("ml-kem"), CKK_ML_KEM },
-	{ STR_WITH_LEN("ml-dsa"), CKK_ML_DSA },
-	{ STR_WITH_LEN("slh-dsa"), CKK_SLH_DSA },
-	{ STR_WITH_LEN("vendor-defined"), CKK_VENDOR_DEFINED },
-};
-#define get_key_type(input) map_get(key_types, input, "key type")
-
-static const map certificate_types = {
-	{ STR_WITH_LEN("x-509"), CKC_X_509 },
-	{ STR_WITH_LEN("x-509-attr-cert"), CKC_X_509_ATTR_CERT },
-	{ STR_WITH_LEN("wtls"), CKC_WTLS },
-	{ STR_WITH_LEN("vendor-defined"), CKC_VENDOR_DEFINED },
-};
-#define get_cert_type(input) map_get(certificate_types, input, "cert type")
-
-static const map certificate_categories = {
-	{ STR_WITH_LEN("unspecified"), CK_CERTIFICATE_CATEGORY_UNSPECIFIED },
-	{ STR_WITH_LEN("token-user"), CK_CERTIFICATE_CATEGORY_TOKEN_USER },
-	{ STR_WITH_LEN("authority"), CK_CERTIFICATE_CATEGORY_AUTHORITY },
-	{ STR_WITH_LEN("other-entity"), CK_CERTIFICATE_CATEGORY_OTHER_ENTITY },
-};
-#define get_cert_cat(input) map_get(certificate_categories, input, "cert category")
-
-static const map hardware_types = {
-	{ STR_WITH_LEN("monotonic-counter"), CKH_MONOTONIC_COUNTER },
-	{ STR_WITH_LEN("clock"), CKH_CLOCK },
-	{ STR_WITH_LEN("user-interface"), CKH_USER_INTERFACE },
-	{ STR_WITH_LEN("vendor-defined"), CKH_VENDOR_DEFINED },
-};
-#define get_hardware_type(input) map_get(hardware_types, input, "hardware type")
-
-static const map profile_ids = {
-	{ STR_WITH_LEN("invalid-id"), CKP_INVALID_ID },
-	{ STR_WITH_LEN("baseline-provider"), CKP_BASELINE_PROVIDER },
-	{ STR_WITH_LEN("extended-provider"), CKP_EXTENDED_PROVIDER },
-	{ STR_WITH_LEN("authentication-token"), CKP_AUTHENTICATION_TOKEN },
-	{ STR_WITH_LEN("public-certificates-token"), CKP_PUBLIC_CERTIFICATES_TOKEN },
-	{ STR_WITH_LEN("complete-provider"), CKP_COMPLETE_PROVIDER },
-	{ STR_WITH_LEN("hkdf-tls-token"), CKP_HKDF_TLS_TOKEN },
-	{ STR_WITH_LEN("vendor-defined"), CKP_VENDOR_DEFINED },
-};
-#define get_profile_id(input) map_get(profile_ids, input, "profile id")
-
-static const map otp_formats = {
-	{ STR_WITH_LEN("decimal"), CK_OTP_FORMAT_DECIMAL },
-	{ STR_WITH_LEN("hexadecimal"), CK_OTP_FORMAT_HEXADECIMAL },
-	{ STR_WITH_LEN("alphanumeric"), CK_OTP_FORMAT_ALPHANUMERIC },
-	{ STR_WITH_LEN("binary"), CK_OTP_FORMAT_BINARY },
-};
-#define get_otp_format(input) map_get(otp_formats, input, "otp format")
-
-static const map otp_params = {
-	{ STR_WITH_LEN("ignored"), CK_OTP_PARAM_IGNORED },
-	{ STR_WITH_LEN("optional"), CK_OTP_PARAM_OPTIONAL },
-	{ STR_WITH_LEN("mandatory"), CK_OTP_PARAM_MANDATORY },
-};
-#define get_otp_param(input) map_get(otp_params, input, "otp param")
-
-static const map security_domains = {
-	{ STR_WITH_LEN("unspecified"), CK_SECURITY_DOMAIN_UNSPECIFIED },
-	{ STR_WITH_LEN("manufacturer"), CK_SECURITY_DOMAIN_MANUFACTURER },
-	{ STR_WITH_LEN("operator"), CK_SECURITY_DOMAIN_OPERATOR },
-	{ STR_WITH_LEN("third-party"), CK_SECURITY_DOMAIN_THIRD_PARTY },
-};
-#define get_security_domain(input) map_get(security_domains, input, "security domain")
-
-static const map session_validation_flags = {
-	{ STR_WITH_LEN("last_validation_ok"), CKS_LAST_VALIDATION_OK },
-};
-
-static const map parameter_sets = {
-	{ STR_WITH_LEN("ml-dsa-44"), CKP_ML_DSA_44 },
-	{ STR_WITH_LEN("ml-dsa-65"), CKP_ML_DSA_65 },
-	{ STR_WITH_LEN("ml-dsa-87"), CKP_ML_DSA_87 },
-	{ STR_WITH_LEN("slh-dsa-sha2-128s"), CKP_SLH_DSA_SHA2_128S },
-	{ STR_WITH_LEN("slh-dsa-shake-128s"), CKP_SLH_DSA_SHAKE_128S },
-	{ STR_WITH_LEN("slh-dsa-sha2-128f"), CKP_SLH_DSA_SHA2_128F },
-	{ STR_WITH_LEN("slh-dsa-shake-128f"), CKP_SLH_DSA_SHAKE_128F },
-	{ STR_WITH_LEN("slh-dsa-sha2-192s"), CKP_SLH_DSA_SHA2_192S },
-	{ STR_WITH_LEN("slh-dsa-shake-192s"), CKP_SLH_DSA_SHAKE_192S },
-	{ STR_WITH_LEN("slh-dsa-sha2-192f"), CKP_SLH_DSA_SHA2_192F },
-	{ STR_WITH_LEN("slh-dsa-shake-192f"), CKP_SLH_DSA_SHAKE_192F },
-	{ STR_WITH_LEN("slh-dsa-sha2-256s"), CKP_SLH_DSA_SHA2_256S },
-	{ STR_WITH_LEN("slh-dsa-shake-256s"), CKP_SLH_DSA_SHAKE_256S },
-	{ STR_WITH_LEN("slh-dsa-sha2-256f"), CKP_SLH_DSA_SHA2_256F },
-	{ STR_WITH_LEN("slh-dsa-shake-256f"), CKP_SLH_DSA_SHAKE_256F },
-	{ STR_WITH_LEN("ml-kem-512"), CKP_ML_KEM_512 },
-	{ STR_WITH_LEN("ml-kem-768"), CKP_ML_KEM_768 },
-	{ STR_WITH_LEN("ml-kem-1024"), CKP_ML_KEM_1024 },
-};
-
-static const map validation_types = {
-	{ STR_WITH_LEN("type-unspecified"), CKV_TYPE_UNSPECIFIED },
-	{ STR_WITH_LEN("type-software"), CKV_TYPE_SOFTWARE },
-	{ STR_WITH_LEN("type-hardware"), CKV_TYPE_HARDWARE },
-	{ STR_WITH_LEN("type-firmware"), CKV_TYPE_FIRMWARE },
-	{ STR_WITH_LEN("type-hybrid"), CKV_TYPE_HYBRID },
-};
-
-static const map authority_types = {
-	{ STR_WITH_LEN("authority-type-unspecified"), CKV_AUTHORITY_TYPE_UNSPECIFIED },
-	{ STR_WITH_LEN("authority-type-nist-cmvp"), CKV_AUTHORITY_TYPE_NIST_CMVP },
-	{ STR_WITH_LEN("authority-type-common-criteria"), CKV_AUTHORITY_TYPE_COMMON_CRITERIA },
-};
-
-static const map trust_types = {
-	{ STR_WITH_LEN("trust-unknown"), CKT_TRUST_UNKNOWN },
-	{ STR_WITH_LEN("trusted"), CKT_TRUSTED },
-	{ STR_WITH_LEN("trust-anchor"), CKT_TRUST_ANCHOR },
-	{ STR_WITH_LEN("not-trusted"), CKT_NOT_TRUSTED },
-	{ STR_WITH_LEN("trust-must-verify-trust"), CKT_TRUST_MUST_VERIFY_TRUST },
-};
 
 typedef struct Attributes {
 	CK_ULONG length;
@@ -1718,7 +2007,6 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 	return result;
 }
 
-
 static const attribute_entry* S_attribute_reverse_find(pTHX_ CK_ULONG value) {
 	size_t i;
 	for (i = 0; i < sizeof attributes / sizeof *attributes; ++i) {
@@ -1880,295 +2168,6 @@ static SV* S_reverse_attribute(pTHX_ CK_ATTRIBUTE* attribute) {
 			croak("Unknown type");
 	}
 }
-
-static const map user_types = {
-	{ STR_WITH_LEN("so"), CKU_SO },
-	{ STR_WITH_LEN("user"), CKU_USER },
-	{ STR_WITH_LEN("context-specific"), CKU_CONTEXT_SPECIFIC },
-};
-#define XS_unpack_CK_USER_TYPE(input) map_get(user_types, input, "user type")
-
-static SV* S_trimmed_value(pTHX_ const CK_BYTE* ptr, size_t max) {
-	ptrdiff_t last = max - 1;
-	while (last >= 0 && ptr[last] == ' ')
-		last--;
-	return newSVpvn((const char*)ptr, last + 1);
-}
-#define trimmed_value(ptr, max) S_trimmed_value(aTHX_ ptr, max)
-
-struct Provider {
-	Refcount refcount;
-	void* handle;
-	CK_FUNCTION_LIST* funcs;
-};
-typedef struct Provider* Crypt__HSM__Provider;
-
-static struct Provider* S_provider_refcount_increment(pTHX_ struct Provider* provider) {
-	refcount_inc(&provider->refcount);
-	return provider;
-}
-#define provider_refcount_increment(provider) S_provider_refcount_increment(aTHX_ provider)
-
-static void S_provider_refcount_decrement(pTHX_ struct Provider* provider) {
-	if (refcount_dec(&provider->refcount) == 1) {
-		provider->funcs->C_Finalize(NULL);
-		dlclose(provider->handle);
-		refcount_destroy(&provider->refcount);
-		PerlMemShared_free(provider);
-	}
-}
-#define provider_refcount_decrement(provider) S_provider_refcount_decrement(aTHX_ provider)
-
-static int provider_dup(pTHX_ MAGIC* magic, CLONE_PARAMS* params) {
-	PERL_UNUSED_VAR(params);
-	provider_refcount_increment((struct Provider*)magic->mg_ptr);
-	return 0;
-}
-
-static int provider_free(pTHX_ SV* sv, MAGIC* magic) {
-	PERL_UNUSED_VAR(sv);
-	provider_refcount_decrement((struct Provider*)magic->mg_ptr);
-	return 0;
-}
-
-static const MGVTBL Crypt__HSM__Provider_magic = { NULL, NULL, NULL, NULL, provider_free, NULL, provider_dup, NULL };
-
-struct Slot {
-	Refcount refcount;
-	struct Provider* provider;
-	CK_SLOT_ID slot;
-};
-typedef struct Slot* Crypt__HSM__Slot;
-
-#define slot_funcs(slot) ((slot)->provider->funcs)
-
-static struct Slot* S_slot_refcount_increment(pTHX_ struct Slot* slot) {
-	refcount_inc(&slot->refcount);
-	return slot;
-}
-#define slot_refcount_increment(slot) S_slot_refcount_increment(aTHX_ slot)
-
-static void S_slot_refcount_decrement(pTHX_ struct Slot* slot) {
-	if (refcount_dec(&slot->refcount) == 1) {
-		provider_refcount_decrement(slot->provider);
-		refcount_destroy(&slot->refcount);
-		PerlMemShared_free(slot);
-	}
-}
-#define slot_refcount_decrement(slot) S_slot_refcount_decrement(aTHX_ slot)
-
-static int slot_dup(pTHX_ MAGIC* magic, CLONE_PARAMS* params) {
-	PERL_UNUSED_VAR(params);
-	struct Slot* slot = (struct Slot*) magic->mg_ptr;
-	slot_refcount_increment(slot);
-	return 0;
-}
-
-static int slot_free(pTHX_ SV* sv, MAGIC* magic) {
-	PERL_UNUSED_VAR(sv);
-	struct Slot* slot = (struct Slot*) magic->mg_ptr;
-	slot_refcount_decrement(slot);
-	return 0;
-}
-
-static const MGVTBL Crypt__HSM__Slot_magic = { NULL, NULL, NULL, NULL, slot_free, NULL, slot_dup, NULL };
-
-static SV* S_new_slot(pTHX_ struct Provider* provider, CK_SLOT_ID slot) {
-	struct Slot* entry = PerlMemShared_calloc(1, sizeof(struct Slot));
-	refcount_init(&entry->refcount, 1);
-	entry->slot = slot;
-	entry->provider = provider_refcount_increment(provider);
-	SV* object = newSV(0);
-	MAGIC* magic = sv_magicext(newSVrv(object, "Crypt::HSM::Slot"), NULL, PERL_MAGIC_ext, &Crypt__HSM__Slot_magic, (const char*)entry, 0);
-	magic->mg_flags = MGf_DUP;
-	return object;
-}
-#define new_slot(provider, slot) S_new_slot(aTHX_ provider, slot)
-
-struct Mechanism {
-	Refcount refcount;
-	struct Slot* slot;
-	CK_MECHANISM_TYPE mechanism;
-};
-typedef struct Mechanism* Crypt__HSM__Mechanism;
-
-typedef CK_MECHANISM_INFO* Crypt__HSM__Mechanism__Info;
-
-static int mechanism_dup(pTHX_ MAGIC* magic, CLONE_PARAMS* params) {
-	PERL_UNUSED_VAR(params);
-	struct Mechanism* mechanism = (struct Mechanism*) magic->mg_ptr;
-	refcount_inc(&mechanism->refcount);
-	return 0;
-}
-
-static int mechanism_free(pTHX_ SV* sv, MAGIC* magic) {
-	PERL_UNUSED_VAR(sv);
-	struct Mechanism* mechanism = (struct Mechanism*) magic->mg_ptr;
-	if (refcount_dec(&mechanism->refcount) == 1) {
-		slot_refcount_decrement(mechanism->slot);
-		refcount_destroy(&mechanism->refcount);
-		PerlMemShared_free(mechanism);
-	}
-	return 0;
-}
-static const MGVTBL Crypt__HSM__Mechanism_magic = { NULL, NULL, NULL, NULL, mechanism_free, NULL, mechanism_dup, NULL };
-
-static SV* S_new_mechanism(pTHX_ struct Slot* slot, CK_MECHANISM_TYPE mechanism) {
-	struct Mechanism* entry = PerlMemShared_calloc(1, sizeof(struct Mechanism));
-	refcount_init(&entry->refcount, 1);
-	entry->mechanism = mechanism;
-	entry->slot = slot_refcount_increment(slot);
-	SV* object = newSV(0);
-	MAGIC* magic = sv_magicext(newSVrv(object, "Crypt::HSM::Mechanism"), NULL, PERL_MAGIC_ext, &Crypt__HSM__Mechanism_magic, (const char*)entry, 0);
-	magic->mg_flags = MGf_DUP;
-	return object;
-}
-#define new_mechanism(slot, mechanism) S_new_mechanism(aTHX_ slot, mechanism)
-
-static CK_MECHANISM_TYPE S_get_mechanism_type(pTHX_ SV* input) {
-	if (SvROK(input)) {
-		MAGIC* magic = mg_findext(SvRV(input), PERL_MAGIC_ext, &Crypt__HSM__Mechanism_magic);
-		if (!magic)
-			croak("No magic found on Crypt::HSM::Mechanism object");
-		struct Mechanism* mech = (struct Mechanism*) magic->mg_ptr;
-		return mech->mechanism;
-	} else {
-		return map_get(mechanisms, input, "mechanism");
-	}
-}
-
-struct Session {
-	Refcount refcount;
-	struct Slot* slot;
-	CK_SESSION_HANDLE handle;
-};
-typedef struct Session* Crypt__HSM__Session;
-
-#define session_funcs(session) slot_funcs(session->slot)
-
-static struct Session* S_session_refcount_increment(pTHX_ struct Session* session) {
-	refcount_inc(&session->refcount);
-	return session;
-}
-#define session_refcount_increment(session) S_session_refcount_increment(aTHX_ session)
-
-static void S_session_refcount_decrement(pTHX_ struct Session* session) {
-	if (refcount_dec(&session->refcount) == 1) {
-		session_funcs(session)->C_CloseSession(session->handle);
-		slot_refcount_decrement(session->slot);
-		refcount_destroy(&session->refcount);
-		PerlMemShared_free(session);
-	}
-}
-#define session_refcount_decrement(session) S_session_refcount_decrement(aTHX_ session)
-
-static int session_dup(pTHX_ MAGIC* magic, CLONE_PARAMS* params) {
-	PERL_UNUSED_VAR(params);
-	struct Session* session = (struct Session*) magic->mg_ptr;
-	session_refcount_increment(session);
-	return 0;
-}
-
-static int session_free(pTHX_ SV* sv, MAGIC* magic) {
-	PERL_UNUSED_VAR(sv);
-	struct Session* session = (struct Session*) magic->mg_ptr;
-	session_refcount_decrement(session);
-	return 0;
-}
-
-static const MGVTBL Crypt__HSM__Session_magic = { NULL, NULL, NULL, NULL, session_free, NULL, session_dup, NULL };
-
-struct Object {
-	Refcount refcount;
-	struct Session* session;
-	CK_OBJECT_HANDLE handle;
-};
-typedef struct Object* Crypt__HSM__Object;
-
-#define object_funcs(object) session_funcs(object->session)
-
-static int object_dup(pTHX_ MAGIC* magic, CLONE_PARAMS* params) {
-	PERL_UNUSED_VAR(params);
-	struct Object* object = (struct Object*) magic->mg_ptr;
-	refcount_inc(&object->refcount);
-	return 0;
-}
-
-static int object_free(pTHX_ SV* sv, MAGIC* magic) {
-	PERL_UNUSED_VAR(sv);
-	struct Object* object = (struct Object*) magic->mg_ptr;
-	if (refcount_dec(&object->refcount) == 1) {
-		session_refcount_decrement(object->session);
-		refcount_destroy(&object->refcount);
-		PerlMemShared_free(object);
-	}
-	return 0;
-}
-
-static const MGVTBL Crypt__HSM__Object_magic = { NULL, NULL, NULL, NULL, object_free, NULL, object_dup, NULL };
-
-static SV* S_new_object(pTHX_ struct Session* session, CK_OBJECT_HANDLE handle) {
-	struct Object* entry = PerlMem_calloc(1, sizeof(struct Object));
-	refcount_init(&entry->refcount, 1);
-	entry->session = session_refcount_increment(session);
-	entry->handle = handle;
-	SV* object = newSV(0);
-	sv_magicext(newSVrv(object, "Crypt::HSM::Object"), NULL, PERL_MAGIC_ext, &Crypt__HSM__Object_magic, (const char*)entry, 0);
-	return object;
-}
-#define new_object(session, object) S_new_object(aTHX_ session, object)
-
-struct Stream {
-	Refcount refcount;
-	struct Session* session;
-	CK_OBJECT_HANDLE encrypt_key;
-	CK_OBJECT_HANDLE sign_key;
-};
-typedef struct Stream* Crypt__HSM__Stream;
-
-#define stream_funcs(stream) session_funcs(stream->session)
-
-static struct Stream* S_open_stream(pTHX_ struct Session* session, CK_OBJECT_HANDLE encrypt_key, CK_OBJECT_HANDLE sign_key) {
-	struct Stream* stream = PerlMemShared_calloc(1, sizeof(struct Stream));
-	refcount_init(&stream->refcount, 1);
-	stream->session = session_refcount_increment(session);
-	stream->encrypt_key = encrypt_key;
-	stream->sign_key = sign_key;
-	return stream;
-}
-#define open_stream(session, encrypt_key, sign_key) S_open_stream(aTHX_ session, encrypt_key, sign_key)
-
-
-static int stream_dup(pTHX_ MAGIC* magic, CLONE_PARAMS* params) {
-	PERL_UNUSED_VAR(params);
-	struct Stream* stream = (struct Stream*) magic->mg_ptr;
-	refcount_inc(&stream->refcount);
-	return 0;
-}
-
-static int stream_free(pTHX_ SV* sv, MAGIC* magic) {
-	PERL_UNUSED_VAR(sv);
-	struct Stream* stream = (struct Stream*) magic->mg_ptr;
-	if (refcount_dec(&stream->refcount) == 1) {
-		session_refcount_decrement(stream->session);
-		refcount_destroy(&stream->refcount);
-		PerlMemShared_free(stream);
-	}
-	return 0;
-}
-
-static const MGVTBL Crypt__HSM__Stream_magic = { NULL, NULL, NULL, NULL, stream_free, NULL, stream_dup, NULL };
-
-typedef struct Stream* Crypt__HSM__Encrypt;
-#define Crypt__HSM__Encrypt_magic Crypt__HSM__Stream_magic
-typedef struct Stream* Crypt__HSM__Decrypt;
-#define Crypt__HSM__Decrypt_magic Crypt__HSM__Stream_magic
-typedef struct Stream* Crypt__HSM__Digest;
-#define Crypt__HSM__Digest_magic Crypt__HSM__Stream_magic
-typedef struct Stream* Crypt__HSM__Sign;
-#define Crypt__HSM__Sign_magic Crypt__HSM__Stream_magic
-typedef struct Stream* Crypt__HSM__Verify;
-#define Crypt__HSM__Verify_magic Crypt__HSM__Stream_magic
 
 
 MODULE = Crypt::HSM	 PACKAGE = Crypt::HSM
