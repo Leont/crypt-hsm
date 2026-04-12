@@ -2029,8 +2029,8 @@ static SV* S_version_to_sv(pTHX_ CK_VERSION* version) {
 }
 #define version_to_sv(version) S_version_to_sv(aTHX_ version)
 
-#define reverse_attribute(attr) S_reverse_attribute(aTHX_ attr)
-static SV* S_reverse_attribute(pTHX_ CK_ATTRIBUTE* attribute) {
+#define reverse_attribute(slot, attr) S_reverse_attribute(aTHX_ slot, attr)
+static SV* S_reverse_attribute(pTHX_ struct Slot* slot, CK_ATTRIBUTE* attribute) {
 	if (attribute->ulValueLen == 0 || attribute->ulValueLen == CK_UNAVAILABLE_INFORMATION)
 		return &PL_sv_undef;
 
@@ -2150,7 +2150,7 @@ static SV* S_reverse_attribute(pTHX_ CK_ATTRIBUTE* attribute) {
 			CK_ULONG* values = (CK_ULONG*) pointer;
 			size_t elems = length / sizeof(CK_ULONG), i;
 			for (i = 0; i < elems; ++i)
-				av_push(result, entry_to_sv(map_reverse_find(mechanisms, values[i])));
+				av_push(result, new_mechanism(slot, values[i]));
 			return newRV_noinc((SV*)result);
 		}
 		case AttrAttr: {
@@ -2160,7 +2160,7 @@ static SV* S_reverse_attribute(pTHX_ CK_ATTRIBUTE* attribute) {
 			for (i = 0; i < elems; ++i) {
 				const attribute_entry* reversed2 = attribute_reverse_find(attribute->type);
 				if (reversed2)
-					hv_store(result, reversed2->key, (I32)reversed2->length, reverse_attribute(&values[i]), 0);
+					hv_store(result, reversed2->key, (I32)reversed2->length, reverse_attribute(slot, &values[i]), 0);
 			}
 			return newRV_noinc((SV*)result);
 		}
@@ -2960,7 +2960,7 @@ CODE:
 	if (result != CKR_OK && result != CKR_ATTRIBUTE_SENSITIVE && result != CKR_ATTRIBUTE_TYPE_INVALID && result != CKR_BUFFER_TOO_SMALL)
 		croak_with("Could not get attributes", result);
 
-	RETVAL = reverse_attribute(&attribute);
+	RETVAL = reverse_attribute(self->session->slot, &attribute);
 OUTPUT: RETVAL
 
 HV* get_attributes(Crypt::HSM::Object self, ...)
@@ -2998,7 +2998,7 @@ CODE:
 	RETVAL = newHV();
 	for (i = 0; i < attributes.length; ++i) {
 		SV* key = ST(i + 1);
-		SV* value = reverse_attribute(&attributes.member[i]);
+		SV* value = reverse_attribute(self->session->slot, &attributes.member[i]);
 		hv_store_ent(RETVAL, key, value, 0);
 	}
 OUTPUT: RETVAL
