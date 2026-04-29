@@ -2056,20 +2056,12 @@ static SV* S_reverse_attribute(pTHX_ struct Slot* slot, CK_ATTRIBUTE* attribute)
 		}
 		case BigIntAttr: {
 			dSP;
-			if (length > IVSIZE) {
-				PUSHMARK(SP);
-				mXPUSHpvs("Math::BigInt");
-				mXPUSHp(pointer, length);
-				PUTBACK;
-				call_method("from_bytes", G_SCALAR);
-			} else {
-				SV* temp = sv_2mortal(newSVpvn("\0\0\0\0\0\0\0\0", IVSIZE));
-				if (length)
-					sv_insert(temp, IVSIZE - length, length, pointer, length);
-				const char* buffer = SvPVbyte_nolen(temp);
-				if (unpackstring(integer_pattern, integer_pattern + 2, buffer, buffer + IVSIZE, 0) != 1)
-					die("Could not decode integer");
-			}
+			PUSHMARK(SP);
+			mXPUSHpvs("Math::BigInt");
+			mXPUSHp(pointer, length);
+			PUTBACK;
+			if (call_method("from_bytes", G_SCALAR) != 1)
+				die("Could not decode integer");
 			SPAGAIN;
 			SV* value = POPs;
 			PUTBACK;
