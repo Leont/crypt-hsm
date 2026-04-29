@@ -1949,7 +1949,10 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 					break;
 				}
 				case ParameterSetAttr: {
-					set_intval(current, map_get(parameter_sets, value, "parameter set"));
+					if (looks_like_number(value))
+						set_intval(current, SvUV(value));
+					else
+						set_intval(current, map_get(parameter_sets, value, "parameter set"));
 					break;
 				}
 				case TrustAttr: {
