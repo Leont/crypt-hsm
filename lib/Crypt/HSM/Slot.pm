@@ -196,6 +196,14 @@ True if the SO PIN value is the default value set by token initialization or man
 
 True if the token failed a FIPS 140-2 self-test and entered an error state.
 
+=item * C<seed-random-required>
+
+True if the token’s random number generator must be seeded or re-seeded using C<seed_random>.
+
+=item * C<async-session-supported>
+
+True if the token supports asynchronous sessions.
+
 =back
 
 =item * C<max-session-count>

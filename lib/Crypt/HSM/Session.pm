@@ -178,6 +178,10 @@ True if the session is read/write; false if the session is read-only
 
 This flag is provided for backward compatibility, and should always be set to true
 
+=item * async-session
+
+True if the session is asynchronous; false if the session is synchronous
+
 =back
 
 =item * C<device-error>
