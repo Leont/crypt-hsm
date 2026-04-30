@@ -814,17 +814,17 @@ static const map parameter_sets = {
 };
 
 static const map validation_types = {
-	{ STR_WITH_LEN("type-unspecified"), CKV_TYPE_UNSPECIFIED },
-	{ STR_WITH_LEN("type-software"), CKV_TYPE_SOFTWARE },
-	{ STR_WITH_LEN("type-hardware"), CKV_TYPE_HARDWARE },
-	{ STR_WITH_LEN("type-firmware"), CKV_TYPE_FIRMWARE },
-	{ STR_WITH_LEN("type-hybrid"), CKV_TYPE_HYBRID },
+	{ STR_WITH_LEN("unspecified"), CKV_TYPE_UNSPECIFIED },
+	{ STR_WITH_LEN("software"), CKV_TYPE_SOFTWARE },
+	{ STR_WITH_LEN("hardware"), CKV_TYPE_HARDWARE },
+	{ STR_WITH_LEN("firmware"), CKV_TYPE_FIRMWARE },
+	{ STR_WITH_LEN("hybrid"), CKV_TYPE_HYBRID },
 };
 
 static const map authority_types = {
-	{ STR_WITH_LEN("authority-type-unspecified"), CKV_AUTHORITY_TYPE_UNSPECIFIED },
-	{ STR_WITH_LEN("authority-type-nist-cmvp"), CKV_AUTHORITY_TYPE_NIST_CMVP },
-	{ STR_WITH_LEN("authority-type-common-criteria"), CKV_AUTHORITY_TYPE_COMMON_CRITERIA },
+	{ STR_WITH_LEN("unspecified"), CKV_AUTHORITY_TYPE_UNSPECIFIED },
+	{ STR_WITH_LEN("nist-cmvp"), CKV_AUTHORITY_TYPE_NIST_CMVP },
+	{ STR_WITH_LEN("common-criteria"), CKV_AUTHORITY_TYPE_COMMON_CRITERIA },
 };
 
 static const map trust_types = {
