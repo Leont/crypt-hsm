@@ -1,6 +1,8 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+
+0.031     2026-05-01 00:07:45+02:00 Europe/Brussels
           - [BREAKING] Make get_attributes take a list instead of an arrayref
           - Expand mechanism attribute values to mechanism objects instead of names
           - Rename validation types and validation authority types
