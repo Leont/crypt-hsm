@@ -77,6 +77,14 @@ True if the mechanism can be used with C<unwrap>
 
 True if the mechanism can be used with C<derive>
 
+=item * C<encapsulate>
+
+True if the mechanism can be used with C<encapsulate> (not yet implemented)
+
+=item * C<decapsulate>
+
+True if the mechanism can be used with C<decapsulate> (not yet implemented)
+
 =item * C<extension>
 
 True if there is an extension to the flags; false if no extensions.

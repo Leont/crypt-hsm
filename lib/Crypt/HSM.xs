@@ -570,6 +570,8 @@ static const map mechanism_flags = {
 	{ STR_WITH_LEN("ec-uncompress"), CKF_EC_UNCOMPRESS },
 	{ STR_WITH_LEN("ec-compress"), CKF_EC_COMPRESS },
 	{ STR_WITH_LEN("ec-curvename"), CKF_EC_CURVENAME },
+	{ STR_WITH_LEN("encapsulate"), CKF_ENCAPSULATE },
+	{ STR_WITH_LEN("decapsulate"), CKF_DECAPSULATE },
 	{ STR_WITH_LEN("extension"), CKF_EXTENSION },
 };
 
