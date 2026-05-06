@@ -656,7 +656,6 @@ static const map object_classes = {
 	{ STR_WITH_LEN("trust"), CKO_TRUST },
 	{ STR_WITH_LEN("vendor-defined"), CKO_VENDOR_DEFINED },
 };
-#define get_object_class(input) map_get(object_classes, input, "object class")
 
 static const map key_types = {
 	{ STR_WITH_LEN("rsa"), CKK_RSA },
@@ -729,7 +728,6 @@ static const map key_types = {
 	{ STR_WITH_LEN("slh-dsa"), CKK_SLH_DSA },
 	{ STR_WITH_LEN("vendor-defined"), CKK_VENDOR_DEFINED },
 };
-#define get_key_type(input) map_get(key_types, input, "key type")
 
 static const map certificate_types = {
 	{ STR_WITH_LEN("x-509"), CKC_X_509 },
@@ -737,7 +735,6 @@ static const map certificate_types = {
 	{ STR_WITH_LEN("wtls"), CKC_WTLS },
 	{ STR_WITH_LEN("vendor-defined"), CKC_VENDOR_DEFINED },
 };
-#define get_cert_type(input) map_get(certificate_types, input, "cert type")
 
 static const map certificate_categories = {
 	{ STR_WITH_LEN("unspecified"), CK_CERTIFICATE_CATEGORY_UNSPECIFIED },
@@ -745,7 +742,6 @@ static const map certificate_categories = {
 	{ STR_WITH_LEN("authority"), CK_CERTIFICATE_CATEGORY_AUTHORITY },
 	{ STR_WITH_LEN("other-entity"), CK_CERTIFICATE_CATEGORY_OTHER_ENTITY },
 };
-#define get_cert_cat(input) map_get(certificate_categories, input, "cert category")
 
 static const map hardware_types = {
 	{ STR_WITH_LEN("monotonic-counter"), CKH_MONOTONIC_COUNTER },
@@ -753,7 +749,6 @@ static const map hardware_types = {
 	{ STR_WITH_LEN("user-interface"), CKH_USER_INTERFACE },
 	{ STR_WITH_LEN("vendor-defined"), CKH_VENDOR_DEFINED },
 };
-#define get_hardware_type(input) map_get(hardware_types, input, "hardware type")
 
 static const map profile_ids = {
 	{ STR_WITH_LEN("invalid-id"), CKP_INVALID_ID },
@@ -765,7 +760,6 @@ static const map profile_ids = {
 	{ STR_WITH_LEN("hkdf-tls-token"), CKP_HKDF_TLS_TOKEN },
 	{ STR_WITH_LEN("vendor-defined"), CKP_VENDOR_DEFINED },
 };
-#define get_profile_id(input) map_get(profile_ids, input, "profile id")
 
 static const map otp_formats = {
 	{ STR_WITH_LEN("decimal"), CK_OTP_FORMAT_DECIMAL },
@@ -773,14 +767,12 @@ static const map otp_formats = {
 	{ STR_WITH_LEN("alphanumeric"), CK_OTP_FORMAT_ALPHANUMERIC },
 	{ STR_WITH_LEN("binary"), CK_OTP_FORMAT_BINARY },
 };
-#define get_otp_format(input) map_get(otp_formats, input, "otp format")
 
 static const map otp_params = {
 	{ STR_WITH_LEN("ignored"), CK_OTP_PARAM_IGNORED },
 	{ STR_WITH_LEN("optional"), CK_OTP_PARAM_OPTIONAL },
 	{ STR_WITH_LEN("mandatory"), CK_OTP_PARAM_MANDATORY },
 };
-#define get_otp_param(input) map_get(otp_params, input, "otp param")
 
 static const map security_domains = {
 	{ STR_WITH_LEN("unspecified"), CK_SECURITY_DOMAIN_UNSPECIFIED },
@@ -788,7 +780,6 @@ static const map security_domains = {
 	{ STR_WITH_LEN("operator"), CK_SECURITY_DOMAIN_OPERATOR },
 	{ STR_WITH_LEN("third-party"), CK_SECURITY_DOMAIN_THIRD_PARTY },
 };
-#define get_security_domain(input) map_get(security_domains, input, "security domain")
 
 static const map session_validation_flags = {
 	{ STR_WITH_LEN("last_validation_ok"), CKS_LAST_VALIDATION_OK },
@@ -1903,27 +1894,27 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 					croak("Can't set version object");
 				}
 				case ClassAttr: {
-					set_intval(current, get_object_class(value));
+					set_intval(current, map_get(object_classes, value, "object class"));
 					break;
 				}
 				case KeyTypeAttr: {
-					set_intval(current, get_key_type(value));
+					set_intval(current, map_get(key_types, value, "key type"));
 					break;
 				}
 				case CertTypeAttr: {
-					set_intval(current, get_cert_type(value));
+					set_intval(current, map_get(certificate_types, value, "cert type"));
 					break;
 				}
 				case CertCatAttr: {
-					set_intval(current, get_cert_cat(value));
+					set_intval(current, map_get(certificate_categories, value, "cert category"));
 					break;
 				}
 				case HardwareTypeAttr: {
-					set_intval(current, get_hardware_type(value));
+					set_intval(current, map_get(hardware_types, value, "hardware type"));
 					break;
 				}
 				case ProfileIdAttr: {
-					set_intval(current, get_profile_id(value));
+					set_intval(current, map_get(profile_ids, value, "profile id"));
 					break;
 				}
 				case MechanismAttr: {
@@ -1931,18 +1922,18 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 					break;
 				}
 				case OtpFormatAttr: {
-					set_intval(current, get_otp_format(value));
+					set_intval(current, map_get(otp_formats, value, "otp format"));
 					break;
 				}
 				case OtpParamAttr: {
-					set_intval(current, get_otp_param(value));
+					set_intval(current, map_get(otp_params, value, "otp param"));
 					break;
 				}
 				case TokenFlagsAttr: {
 					croak("Can't set token flags");
 				}
 				case SecurityDomainAttr: {
-					set_intval(current, get_security_domain(value));
+					set_intval(current, map_get(security_domains, value, "security domain"));
 					break;
 				}
 				case ParameterSetAttr: {
