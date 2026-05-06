@@ -2153,7 +2153,7 @@ static SV* S_reverse_attribute(pTHX_ struct Slot* slot, CK_ATTRIBUTE* attribute)
 			CK_ATTRIBUTE* values = (CK_ATTRIBUTE*) pointer;
 			size_t elems = length / sizeof(CK_ATTRIBUTE), i;
 			for (i = 0; i < elems; ++i) {
-				const attribute_entry* reversed2 = attribute_reverse_find(attribute->type);
+				const attribute_entry* reversed2 = attribute_reverse_find(values[i].type);
 				if (reversed2)
 					hv_store(result, reversed2->key, (I32)reversed2->length, reverse_attribute(slot, &values[i]), 0);
 			}
