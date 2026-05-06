@@ -1321,8 +1321,7 @@ static const map mechanisms = {
 };
 
 #define INIT_PARAMS(TYPE) \
-	TYPE* params;\
-	Newxz(params, 1, TYPE);\
+	TYPE* params = safecalloc(1, sizeof(TYPE));\
 	SAVEFREEPV(params);\
 	result.pParameter = params;\
 	result.ulParameterLen = sizeof *params;
@@ -1561,8 +1560,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 
 			params->ulAESKeyBits = SvIV(array[0]);
 
-			CK_RSA_PKCS_OAEP_PARAMS* oaep_params;
-			Newxz(oaep_params, 1, CK_RSA_PKCS_OAEP_PARAMS);
+			CK_RSA_PKCS_OAEP_PARAMS* oaep_params = safecalloc(1, sizeof(CK_RSA_PKCS_OAEP_PARAMS));
 			SAVEFREEPV(oaep_params);
 			params->pOAEPParams = oaep_params;
 
@@ -1828,7 +1826,7 @@ static const attribute_entry* S_get_attribute_entry(pTHX_ const char* name, size
 #define get_attribute_entry(name, name_length) S_get_attribute_entry(aTHX_ name, name_length)
 
 static void S_set_intval(pTHX_ CK_ATTRIBUTE* current, CK_ULONG value) {
-	Newxz(current->pValue, 1, CK_ULONG);
+	current->pValue = safemalloc(sizeof(CK_ULONG));
 	SAVEFREEPV(current->pValue);
 	current->ulValueLen = sizeof(CK_ULONG);
 	*(CK_ULONG*)current->pValue = value;
@@ -1847,7 +1845,7 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 	if (!SvROK(attributes_sv) || SvTYPE(SvRV(attributes_sv)) != SVt_PVHV)
 		croak("Invalid attributes parameter");
 	HV* attributes = (HV*) SvRV(attributes_sv);
-	Newxz(result.member, HvUSEDKEYS(attributes), CK_ATTRIBUTE);
+	result.member = safecalloc(HvUSEDKEYS(attributes), sizeof(CK_ATTRIBUTE));
 	SAVEFREEPV(result.member);
 
 	HE* item;
@@ -1899,8 +1897,7 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 					break;
 				}
 				case VersionAttr: {
-					CK_VERSION* version;
-					Newxz(version, 1, CK_VERSION);
+					CK_VERSION* version = safemalloc(sizeof(CK_VERSION));
 					SAVEFREEPV(current->pValue);
 					version->major = SvIV(value);
 					version->minor = round((SvNV(value) - SvIV(value)) * 100);
@@ -1974,8 +1971,7 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 					if (!SvROK(value) || SvTYPE(SvRV(value)) != SVt_PVAV)
 						croak("Invalid IntArray attribute value");
 					AV* array = (AV*) SvRV(value);
-					CK_ULONG* values, i;
-					Newxz(values, av_count(array), CK_ULONG);
+					CK_ULONG i, *values = safecalloc(av_count(array), sizeof(CK_ULONG));
 					SAVEFREEPV(values);
 					for (i = 0; i < av_count(array); ++i)
 						values[i] = (CK_ULONG)SvUV(*av_fetch(array, i, FALSE));
@@ -1987,8 +1983,7 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 					if (!SvROK(value) || SvTYPE(SvRV(value)) != SVt_PVAV)
 						croak("Invalid MechanismArray attribute value");
 					AV* array = (AV*) SvRV(value);
-					CK_ULONG* values, i;
-					Newxz(values, av_count(array), CK_ULONG);
+					CK_ULONG i, *values = safecalloc(av_count(array), sizeof(CK_ULONG));
 					SAVEFREEPV(values);
 					for (i = 0; i < av_count(array); ++i)
 						values[i] = get_mechanism_type(*av_fetch(array, i, FALSE));
@@ -2266,8 +2261,7 @@ PPCODE:
 
 	EXTEND(SP, (int)count);
 
-	CK_SLOT_ID_PTR slotList;
-	Newxz(slotList, count, CK_SLOT_ID);
+	CK_SLOT_ID_PTR slotList = safecalloc(count, sizeof(CK_SLOT_ID));
 	SAVEFREEPV(slotList);
 
 	result = self->funcs->C_GetSlotList(tokenPresent, slotList, &count);
@@ -2380,13 +2374,12 @@ OUTPUT: RETVAL
 
 void mechanisms(Crypt::HSM::Slot self)
 PPCODE:
-	CK_MECHANISM_TYPE* types;
 	CK_ULONG length, i;
 	CK_RV result = slot_funcs(self)->C_GetMechanismList(self->slot, NULL, &length);
 	if (result != CKR_OK)
 		croak_with("Couldn't get mechanisms length", result);
 
-	Newxz(types, length, CK_MECHANISM_TYPE);
+	CK_MECHANISM_TYPE* types = safecalloc(length, sizeof(CK_MECHANISM_TYPE));
 	SAVEFREEPV(types);
 	result = slot_funcs(self)->C_GetMechanismList(self->slot, types, &length);
 	if (result != CKR_OK)
@@ -2949,7 +2942,7 @@ CODE:
 		croak_with("Could not get attribute", result);
 
 	if (attribute.ulValueLen != CK_UNAVAILABLE_INFORMATION) {
-		Newxz(attribute.pValue, attribute.ulValueLen, char);
+		attribute.pValue = safemalloc(attribute.ulValueLen);
 		SAVEFREEPV(attribute.pValue);
 	}
 
@@ -2964,7 +2957,7 @@ HV* get_attributes(Crypt::HSM::Object self, ...)
 CODE:
 	Attributes attributes;
 	attributes.length = (CK_ULONG) items - 1u;
-	Newxz(attributes.member, attributes.length, CK_ATTRIBUTE);
+	attributes.member = safecalloc(attributes.length, sizeof(CK_ATTRIBUTE));
 	SAVEFREEPV(attributes.member);
 
 	CK_ULONG i;
@@ -2983,7 +2976,7 @@ CODE:
 
 	for (i = 0; i < attributes.length; ++i) {
 		if (attributes.member[i].ulValueLen != CK_UNAVAILABLE_INFORMATION) {
-			Newxz(attributes.member[i].pValue, attributes.member[i].ulValueLen, char);
+			attributes.member[i].pValue = safemalloc(attributes.member[i].ulValueLen);
 			SAVEFREEPV(attributes.member[i].pValue);
 		}
 	}
