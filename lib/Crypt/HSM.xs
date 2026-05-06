@@ -1814,7 +1814,7 @@ static const attribute_map attributes = {
 	{ STR_WITH_LEN("decapsulate"), CKA_DECAPSULATE, BoolAttr },
 	{ STR_WITH_LEN("hash-of-certificate"), CKA_HASH_OF_CERTIFICATE, ByteAttr },
 	{ STR_WITH_LEN("public-crc64_value"), CKA_PUBLIC_CRC64_VALUE, ByteAttr },
-	{ STR_WITH_LEN("seed"), CKA_SEED },
+	{ STR_WITH_LEN("seed"), CKA_SEED, ByteAttr },
 	{ STR_WITH_LEN("vendor-defined"), CKA_VENDOR_DEFINED, ByteAttr },
 };
 
