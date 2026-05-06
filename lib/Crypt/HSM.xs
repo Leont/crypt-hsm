@@ -2629,11 +2629,11 @@ CODE:
 	RETVAL = newSV(encryptedDataLen);
 	SvPOK_only(RETVAL);
 	result = session_funcs(self)->C_Encrypt(self->handle, dataPV, dataLen, (CK_BYTE*)SvPVbyte_nolen(RETVAL), &encryptedDataLen);
-	SvCUR(RETVAL) = encryptedDataLen;
 	if (result != CKR_OK) {
 		SvREFCNT_dec(RETVAL);
 		croak_with("Couldn't encrypt", result);
 	}
+	SvCUR(RETVAL) = encryptedDataLen;
 OUTPUT: RETVAL
 
 
@@ -2890,10 +2890,10 @@ SV* generate_random(Crypt::HSM::Session self, CK_ULONG length)
 CODE:
 	RETVAL = newSV(length);
 	SvPOK_only(RETVAL);
-	SvCUR(RETVAL) = length;
 	CK_RV result = session_funcs(self)->C_GenerateRandom(self->handle, (CK_BYTE*)SvPVbyte_nolen(RETVAL), length);
 	if (result != CKR_OK)
 		croak_with("Couldn't generate randomness", result);
+	SvCUR(RETVAL) = length;
 OUTPUT: RETVAL
 
 
