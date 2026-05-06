@@ -1584,8 +1584,9 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 					params->pContextData = get_buffer(array[0], &params->ulContextDataLen);
 
 				if (array_len > 1)
-					params->phFlag = SvTRUE(array[0]);
+					params->phFlag = SvTRUE(array[1]);
 			}
+			break;
 		}
 
 		case CKM_ML_DSA:
@@ -1617,6 +1618,7 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 				if (array_len > 1)
 					params->hedgeVariant = map_get(hedge_types, array[1], "hedge type");
 			}
+			break;
 		}
 
 		case CKM_HASH_ML_DSA:
@@ -1625,14 +1627,15 @@ static CK_MECHANISM S_specialize_mechanism(pTHX_ CK_MECHANISM_TYPE type, SV** ar
 				croak("Insufficient parameters for PQC hash");
 
 			INIT_PARAMS(CK_HASH_SIGN_ADDITIONAL_CONTEXT);
-			CK_MECHANISM_TYPE hash = get_mechanism_type(array[0]);
+			params->hash = get_mechanism_type(array[0]);
 
 			if (array_len > 1) {
-				params->pContext = get_buffer(array[0], &params->ulContextLen);
+				params->pContext = get_buffer(array[1], &params->ulContextLen);
 
 				if (array_len > 2)
-					params->hedgeVariant = map_get(hedge_types, array[1], "hedge type");
+					params->hedgeVariant = map_get(hedge_types, array[2], "hedge type");
 			}
+			break;
 		}
 	}
 
