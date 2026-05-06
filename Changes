@@ -4,6 +4,7 @@ Revision history for Crypt-HSM
           - Fix specialization of eddsa, ml_dsa and slh_dsa
           - Make seed attribute a ByteAttr
           - Use correct keys in AttrAttr decoding logic
+          - Don't allow for setting of version attributes
 
 0.031     2026-05-01 00:07:45+02:00 Europe/Brussels
           - [BREAKING] Make get_attributes take a list instead of an arrayref

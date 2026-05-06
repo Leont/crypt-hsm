@@ -1900,12 +1900,7 @@ static struct Attributes S_get_attributes(pTHX_ SV* attributes_sv) {
 					break;
 				}
 				case VersionAttr: {
-					CK_VERSION* version = safemalloc(sizeof(CK_VERSION));
-					SAVEFREEPV(current->pValue);
-					version->major = SvIV(value);
-					version->minor = round((SvNV(value) - SvIV(value)) * 100);
-					current->pValue = version;
-					current->ulValueLen = sizeof *version;
+					croak("Can't set version object");
 				}
 				case ClassAttr: {
 					set_intval(current, get_object_class(value));
