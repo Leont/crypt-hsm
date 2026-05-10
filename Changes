@@ -1,6 +1,8 @@
 Revision history for Crypt-HSM
 
 {{$NEXT}}
+
+0.032     2026-05-10 15:59:00+02:00 Europe/Brussels
           - Fix specialization of eddsa, ml_dsa and slh_dsa
           - Make seed attribute a ByteAttr
           - Use correct keys in AttrAttr decoding logic
